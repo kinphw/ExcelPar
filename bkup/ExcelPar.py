@@ -1,14 +1,13 @@
 #####################################################################
 # Excel PAR
-# v0.05
-# DD 231019
+# v0.0.7 DD 231026
 #####################################################################
 
-# v0.04, 231019 : 세부계정 월별순증분석 상단/하단 Logic 변경.
+# v0.0.4, 231019 : 세부계정 월별순증분석 상단/하단 Logic 변경.
 # (기존) 순차기평균 + 순대기(절대값)평균  ==> 문제점. "가중"평균이 아니라 평균을 단순 합산하기때문에 Range가 과도하게 표시됨
 # (수정후) 0이 아닌 월 절대값 평균
-
-# v0.05, 231019 : FS Line 추가생성 구현
+# v0.0.5, 231019 : FS Line 추가생성 구현
+# v0.0.6, 231023 : 상하단 Logic 재변경_이예린SM (Mean ± 2Std)
 #####################################################################
 ### 1. 전역변수 설정
 
@@ -20,7 +19,7 @@ def SetGlobal():
     global Level
 
     #PM = 1000000000 # 10억을 기준으로 함
-    PM = input("적용할 PM을 입력하세요 > ") or '4,634,000,000'
+    PM = input("적용할 PM을 입력하세요 > ") or ' 2,300,000,000'
     try:
         PM = PM.replace(",","")
     except:
@@ -29,7 +28,7 @@ def SetGlobal():
     print(f'입력하신 PM은 {PM:,}입니다.')
 
     #De_minimis = 200000000
-    De_minimis = input("적용할 CTT를 입력하세요 > ") or '289,000,000'
+    De_minimis = input("적용할 CTT를 입력하세요 > ") or ' 155,000,000 '
     try:
         De_minimis = De_minimis.replace(",","")
     except:
@@ -37,7 +36,7 @@ def SetGlobal():
     De_minimis = int(De_minimis)
     print(f'입력하신 CTT는 {De_minimis:,}입니다.')
 
-    ClientNameDate = input("파일명에 반영할 회사명/기준월을 입력하세요. 파일명에만 영향을 줍니다. (ex. 삼성전자2309)> ")
+    ClientNameDate = input("파일명에 반영할 회사명/기준월을 입력하세요. 파일명에만 영향을 줍니다. (ex. 삼성전자2309)> ") or '케이티샛2309'
 
     diff_비율 = 0.2
     print(f'기본 차이비율 Threshold는 {diff_비율:.0%}')
@@ -55,18 +54,23 @@ def ImportGL():
     from mylib import myFileDialog as myfd
 
     glFile = myfd.askopenfilename() #PHW
-    gl = pd.read_csv(glFile, encoding="utf-8-sig", sep="\t")
+    gl = pd.read_csv(glFile, encoding="utf-8-sig", sep="\t", low_memory=False)
 
 #####################################################################
 
-def PreprocessGL():
+def PreprocessGL(Level : str = 'Detail'):
 
     import pandas as pd
     import numpy as np
 
     gl['전표번호'] = gl['전표번호'].astype(str) #전표번호 2 String
     gl['전기일자'] = pd.to_datetime(gl['전기일자'],format="%Y-%m-%d") #전기일자 2 Datetime
-    gl['계정과목코드'] = gl['계정과목코드'].astype(str) #계정과목코드 2 String
+    gl['계정과목코드'] = gl['계정과목코드'].astype(str) #계정과목코드 2 String   
+    gl['거래처코드'] = gl['거래처코드'].fillna('NAN') #DEBUG 231026
+
+    if Level == 'Detail': #Detail일때만 수행
+        print("Detail 수준 GL을 전처리 - Company code를 계정과목코드로 지정합니다.")
+        gl["Company code"] = gl["계정과목코드"].apply(str) + "_" + gl["계정과목명"].apply(str) # Company Code    
 
     print("GL 전처리 Done")
 
@@ -150,12 +154,6 @@ def PreprocessTB():
     tb_분석대상 = tb[tb["분석대상"] == "O"]
     분석계정과목 = tb_분석대상["Company code"].unique() 
     #PHW주. Company code가 PAR 분석대상 계정과목 수준임. 기본은 실계정으로 전처리하여 수행해볼 것
-    
-    #print("전처리 결과 추출된 분석대상 계정과목은 >")
-    #print(분석계정과목)
-
-    #print("전처리 결과 TB >")
-    #print(tb)
 
     ## 임시파일 생성부
     ## 대분류 증감요인
@@ -169,9 +167,9 @@ def PreprocessTB():
                         np.where((tb["증감금액"] != 0) & (tb["T2_증감금액"] == 0), 1, tb["증감금액"]/tb["T2_증감금액"]))
 
 
-    tb.to_excel("삭제.xlsx")
+    #tb.to_excel("삭제.xlsx")
 
-    print("\t임시파일을 생성했습니다.")
+    #print("\t임시파일을 생성했습니다.")
 
 def AnalyzeAccounts():
 
@@ -215,6 +213,8 @@ def AnalyzeAccounts():
         pbar.update(1)        
         
         df = gl
+
+        #Preprocess
         df['전표번호'] = df['전표번호'].astype(str)
         df['계정과목코드'] = df['계정과목코드'].astype(str)
         
@@ -314,38 +314,29 @@ def AnalyzeAccounts():
             df2 = df2[["회계월", "CY", "PY"]]
             
             ########################################################################################
-            # 상하단 Logic 변경
-
-            # # CY 열이 양수인 값과 음수인 값 추출 후 절댓값 평균 계산
-            # positive_mean = df2[df2["CY"] > 0]["CY"].abs().mean() #해당계정의, 당기중 월별증감이 순차기액인 월들의 평균 순차기액 (abs)
-            # negative_mean = df2[df2["CY"] < 0]["CY"].abs().mean() #해당계정의, 당기중 월별증감이 순대기액인 월들의 평균 순대기액 (abs)
-
-            # ### PHW주. 현재는 1~12월로 세팅되어 있는데, 어차피 변동이 없는 월은 == 0 이 없어서 해당이 안되기 때문에 현재 코드 유지 가능함 (231019)
-
-            # # 값이 NaN이면 대체값으로 df2["CY"].abs().mean() 사용
-            # if np.isnan(positive_mean) or np.isnan(negative_mean): #만약 차변 또는 대변 중 하나가 없으면, 
-            #     df2["상단"] = df2["CY"].abs().mean() #당기 월별 총 전표금액 평균 적용
-            # else:
-            #     df2["상단"] = positive_mean + negative_mean #상단 : 월별평균순차기액 + 월별평균순대기액  <제일 중요한 Logic>
-
+            # 상하단 Logic 변경 # RANGE : NEW LOGIC _ 231023 - 이예린SM
             ########################################################################################
 
-            # RANGE : NEW LOGIC
-            if (df2['CY'] != 0).any():  #순증이 0이 아닌 월이 1개라도 있으면 True 
-                df2['상단'] = df2[df2['CY'] != 0]['CY'].abs().mean() #당기 중 순증이 0이 아닌 월별 변동액의 절대값 평균
-            else:                       # 아니라 모두 0이면 False
-                df2['상단'] = df2['CY'].abs().mean() #당기 월별 총 전표금액 평균 적용
+            df_melted = df2.melt(id_vars=['회계월'], value_vars=['CY', 'PY'], var_name='구분', value_name='금액') #Melted Dataframe
+            df_mean = df_melted[df_melted['금액'] != 0]["금액"].mean() #Melted df 중 금액이 있는 월의 평균
+            df_std = df_melted[df_melted['금액'] != 0]["금액"].std() #표준편차            
+
+            # Z-Score 임계값 설정 (예시: ±2)
+            상단기준_Z = 2
+            하단기준_Z = -2
+
+            # 상단 기준금액과 하단 기준금액 계산
+            상단금액기준 = df_mean + 상단기준_Z * df_std
+            하단금액기준 = df_mean + 하단기준_Z * df_std
+
+            df2["상단"] = 상단금액기준
+            df2["하단"] = 하단금액기준
             
-            df2["하단"] = df2["상단"] * -1 #하단 : 상단을 부호 반대로
-            
-            #조건1 - df2(당기 월별 증감액) 절대값이 CTT보다 작으면 X, or:
-            #조건2 - df2(당기 월별 증감액) 절대값이 상단보다 작으면 X,
-            # 나머지는 모두 O
-            # 즉 당월 순증액이 CTT보다 크고 <월별 평균 순증감액>보다 커야 대상임
             df2["당기_분석대상"] = np.where(df2["CY"].abs() <= De_minimis, "X",
-                                    np.where(df2["CY"].abs() < df2["상단"].abs(), "X", "O"))
+                                    np.where((df2["CY"] < df2["상단"]) & (df2["CY"] > df2["하단"]), "X", "O")) ##########수정 10.20 
             df2["전기_분석대상"] = np.where(df2["PY"].abs() <= De_minimis, "X",
-                                    np.where(df2["PY"].abs() < df2["상단"].abs(), "X", "O"))
+                                    np.where((df2["PY"] < df2["상단"]) & (df2["PY"] > df2["하단"]), "X", "O")) ##########수정 10.20 
+            
             df2 = df2.set_index('회계월')
             
             # 매출 증 전표가 원래 -인 것에 대한 반전 >> 코드 삭제함. CY, PY는 조정하면 안됨     
@@ -354,7 +345,23 @@ def AnalyzeAccounts():
 
             # Save the analysis report to a separate sheet
             # DEBUG. 231019. / to _ (계정과목명에 /가 들어가면 안됨)
-            account_code_tmp = account_code.replace("/","_")
+            rep = {
+                '/':'_',
+                ':':'_',
+                '<':'_',
+                '>':'_'
+            }
+            account_code_tmp = account_code #글자복사
+            for before,after in rep.items():
+                account_code_tmp = account_code_tmp.replace(before,after)
+
+            # account_code_tmp = account_code.replace("/","_")
+            # # DEBUG. 231023. : to _ (계정과목명에 :가 들어가면 안됨)
+            # account_code_tmp = account_code.replace(":","_")
+            # # DEBUG. 231026. : <> to _ 
+            # account_code_tmp = account_code.replace("<","_")
+            # account_code_tmp = account_code.replace(">","_")
+
             report_filename = f"분석보고서_{ClientNameDate}_{account_code_tmp}_{Level}.xlsx"
 
             pbar.set_description(account_code + " 분석보고서 파일을 생성합니다...")
@@ -392,7 +399,7 @@ def AnalyzeAccounts():
         sheet['A2'].font = Font('Arial', bold=True, size=12)
 
         sheet['A3'] = 'CY/PY는 해당월 순증감액입니다. (Not 잔액)'
-        sheet['A4'] = 'CY 월별순증감액(절대값기준)의 평균이 상/하단 Range이며, 해당월 순증감액이 Range를 벗어나는 경우 분석대상입니다.'
+        sheet['A4'] = '전기~당기 월별순증감액 μ±2σ(=Z-score ±2)가 상하단 정상Range이며, 해당월 순증감액이 Range를 벗어나는 경우 분석대상입니다.'
 
         pbar.set_description(account_code + " 분석보고서_원장_요약 시트를 생성합니다...")
     
@@ -591,11 +598,13 @@ def AnalyzeAccounts():
         
         # formatting the report
         sheet3['A1'] = '분석보고서_원장'
-        sheet3['A2'] = '분석대상 계정의 원장 주요한 변동을 추출합니다(월별증감액합계대비 증감액이 10%이상이며, 연도별, 월별로 증감금액(절대값)이 상위 5위 이내).'
+        sheet3['A2'] = '분석대상 계정의 원장 주요한 변동을 추출합니다(월별증감액합계대비증감액(기여도)이 10%이상이며, 연도별, 월별로 증감금액(절대값)이 상위 3위 이내).'
+        sheet3['A3'] = '설명율 = 전표금액/월합산액, 기여도 = abs(설명율)' #231023 추가
         sheet3['A1'].font = Font('Arial', bold=True, size=18)
         sheet3['A2'].font = Font('Arial', bold=True, size=12)
         
-        sheet3.column_dimensions.group('J','S',hidden=True)     # B 부터 D 열 숨기기
+        #sheet3.column_dimensions.group('J','S',hidden=True)     # B 부터 D 열 숨기기
+        sheet3.column_dimensions.group('J','U',hidden=True)     # Hardcoded
         
         pbar.set_description(account_code + " 분석보고서 파일을 저장합니다.")
 
@@ -768,6 +777,9 @@ def CreateLeadReport():
     분석적검토1["Refer to 주요증감_파일"] = ""
 
     분석적검토1["주요증감"]= 검토문장 #Global
+    #231025 DEBUG : 만약, TB COA에 중복이 있는 경우 여기서 걸림. 따라서 TB COA에 중복이 있으면 안됨
+
+    pd.DataFrame(검토문장).to_excel("b.xlsx")
 
     #print(분석적검토1)
     #print(검토문장)
@@ -834,7 +846,7 @@ def CreateLeadReport():
     worksheet['L4'] = De_minimis
       
     worksheet['Q2'] = '분반기검토시 PY금액은 BS의 경우 전기말, PL의 경우 전년동기말입니다. (PY1은 일괄 전전기말)'
-    worksheet['Q3'] = 'Threshold = Min[0.2PY, 0.5PM]'
+    worksheet['Q3'] = 'Threshold = Min[0.2CY, 0.5PM]' #231025 typo
     worksheet['Q4'] = '분석대상 = 증감금액 >= Threshold | 증감비율 >= 20%'
     
     from openpyxl.styles import Alignment, PatternFill
@@ -971,9 +983,9 @@ def ChangeTBGL():
     
     #1. GL [Company Code]를 FS Line으로 변경한다.
     global gl
-    gl['Company code'] = gl['FSCode'].astype(str) + "_" + gl['FSName'].astype(str)
+    gl['Company code'] = gl['FSCode'].fillna(0).astype(float).astype(int).astype(str) + "_" + gl['FSName'].astype(str) #DEBUG 231025
 
-    gl['계정과목코드'] = gl['FSCode']
+    gl['계정과목코드'] = gl['FSCode'].fillna(0).astype(float).astype(int).astype(str) #DEBUG 231025
     gl['계정과목명'] = gl['FSName']
 
     print("TB와 GL의 KEY가 FS Line으로 변경되었습니다.")
@@ -989,9 +1001,9 @@ def ChangeTBGL():
     tbFS["PY"] = np.where(tbFS["BSPL"] == "BS", tbFS["전기말"], tbFS["전년동기말"]) #조건식으로 브로드캐스팅
     tbFS["PY1"] = tbFS["전전기말"]
 
-    tbFS['계정과목코드'] = tbFS['FSCode']
+    tbFS['계정과목코드'] = tbFS['FSCode'].fillna(0).astype(float).astype(int).astype(str)
     tbFS['계정과목명'] = tbFS['FSName']
-    tbFS["Company code"] = tbFS["계정과목코드"] + "_" + tbFS["계정과목명"] # Company Code
+    tbFS["Company code"] = tbFS["계정과목코드"].apply(str) + "_" + tbFS["계정과목명"].apply(str) # Company Code
 
     tbFS['T1'] = 'T1'
     tbFS['T2'] = 'T2'
@@ -1020,7 +1032,7 @@ if(__name__=="__main__"):
     ImportGL()
 
     print("\n#2-2. GL을 전처리합니다.")
-    PreprocessGL()
+    PreprocessGL('Detail') #Level
 
     print("\n#3-1. TB를 Import합니다.")
     ImportTB()
