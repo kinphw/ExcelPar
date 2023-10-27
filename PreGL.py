@@ -1,23 +1,39 @@
-###
+##################################################################
 # Excel PAR
 # 전처리_G/L
 # v 0.0.1 DD 231024
-
-## 인터프리터에서 수행을 권장
-
-###
 # v 0.0.2 DD 231024 GL 엑셀 순환인식부 추가
+# v 0.0.3 DD 231024 코드로 구현
 ##################################################################
 
 #전역부
-from mylib import myFileDialog as myfd
+from ExcelPar.mylib import myFileDialog as myfd
 import pandas as pd
 import clipboard
 import glob
-##################################################################
-#0. 편의를 위한 폴더 이동
-tgtdir = myfd.askdirectory()
-os.chdir(tgtdir)
+import os
+import numpy as np
+import openpyxl
+
+class Const:
+    #FOR 비트연산을 위한 상수
+    TO연도CYPY = 0b1 << 0
+    TO회계월FR전기일자yyyy_mm_dd = 0b1 << 2
+    TO회계월FR전기일자yyyy_mm = 0b1 << 3
+    TO회계월FR전기일자yyyymm = 0b1 << 4
+    TO대변금액FR대변금액MINUS = 0b1 << 5
+    TO차변금액FR전표금액 = 0b1 << 6
+    TO차대금액FR전표금액 = 0b1 << 7
+    TO전표금액FR차대금액 = 0b1 << 8
+
+#변수생성부
+
+def MoveFolder()->str:  
+    ##################################################################
+    #0. 편의를 위한 폴더 이동
+    tgtdir = myfd.askdirectory("수행폴더를 지정하세요")
+    os.chdir(tgtdir)
+    return tgtdir
 ##################################################################
 
 # USE IF NEEDED
@@ -37,14 +53,65 @@ os.chdir(tgtdir)
 
 ##################################################################
 
-## STE1. CY
-df = pd.read_csv(myfd.askopenfilename(),sep="\t")#, sheet_name="GL")
+def TempDF(Flag:bool=True, df:pd.DataFrame = None, Filename:str="temp.pickle") -> pd.DataFrame: #True면 저장, False면 불러오기
 
-# IF EXCEL
-df = pd.read_excel(myfd.askopenfilename())
+    #임시저장하는 파일
+    #Filename = "temp.pickle"
+    print("load한 dataframe의 임시저장 여부를 확인합니다.")
 
-def autoMap(df:pd.DataFrame)-> pd.DataFrame:
-    import glob
+    if Flag:
+        if not input("임시저장한다면 Y>>") == "Y":
+            print("임시저장하지 않습니다")
+            return            
+        Filename = input("임시저장합니다. 저장할파일명 입력하세요>")
+        df.to_pickle(Filename)
+        print("임시저장완료.",Filename)
+        
+    else:
+        if not input("임시로드한다면 Y>>") == "Y":
+            print("임시로드하지 않습니다")
+            return            
+        Filename = print("임시저장 파일을 로드합니다. 로드할파일명>")
+        df = pd.read_pickle(Filename)        
+        print("임시파일 로드완료")
+    return df
+        
+
+def ImportGL(bMultisheet:bool=False)->pd.DataFrame:
+    
+    filename = myfd.askopenfilename("Select GL")
+    
+    ## STE1. CY
+    #필요한 부분 활성화
+    #df = pd.read_csv(myfd.askopenfilename(),sep="\t")#, sheet_name="GL")
+    # IF EXCEL    
+    #df = pd.read_excel(myfd.askopenfilename(), sheet_name='GL(23)')
+    
+    #파일을 읽어서 시트 수를 찾아낸다
+
+    if bMultisheet:            
+        print("복수 시트를 읽습니다.)")
+        wb = openpyxl.load_workbook(filename, read_only=True) #read_only for speed
+        print(filename)
+        sheetCount = len(wb.sheetnames)
+        print("시트수:",sheetCount)
+        df = pd.DataFrame()
+
+        for i in range(sheetCount):
+            dfTmp = pd.read_excel(filename,sheet_name=i) #Should be i
+            df = pd.concat([df, dfTmp])
+            print(i,"번째 시트를 합쳤습니다.")
+    else:
+        print("단일 파일을 추출합니다.")
+        df = pd.read_excel(filename)
+
+    TempDF(True)
+
+    print("데이터프레임을 반환합니다.")
+    return df
+
+def AutoMap(df:pd.DataFrame, tgtdir:str)-> pd.DataFrame:
+    
     filenameImportMap = "ImportMAP.xlsx"
     #tgtdir = myfd.askdirectory()
     filenameImportMap = glob.glob(tgtdir+"/"+filenameImportMap)
@@ -65,30 +132,82 @@ def autoMap(df:pd.DataFrame)-> pd.DataFrame:
     
     return dfGL
 
-dfGL = autoMap(df)
+def ReadFlag(tgtdir:str)->bin:
+    print("ImportMap.xlsx에서 Flag를 읽습니다.")
+    filenameImportMap = "ImportMAP.xlsx"
+    #tgtdir = myfd.askdirectory()
+    filenameImportMap = glob.glob(tgtdir+"/"+filenameImportMap)
+    filenameImportMap = filenameImportMap[0]
+    dfMap = pd.read_excel(filenameImportMap, sheet_name="MAP_FLAG",header=None)    
+    dfMap.columns = ['Flag', 'Check']
+
+    cond = dfMap.loc[:,'Check'] == 'O'
+    FlagOld = dfMap[cond].loc[:,'Flag'].to_list()
+    print("Flag:",FlagOld)
+    FlagNew = 0b0
+    for i,j in enumerate(FlagOld):
+        FlagNew = FlagNew | getattr(Const,j)
+
+    print("Flag:",bin(FlagNew))
+    return FlagNew
 
 ##########################################################################
 ## 중요
 ##########################################################################
 
-# b. 수기처리 => 회사에 따라 적절히 변형하여 적용한다.
 
-def preproc(dfGL, year:str = 'CY') -> pd.DataFrame:
-    import numpy as np
+def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:    
+    # 수기처리 => 회사에 따라 적절히 변형하여 적용한다.    
+    dfGL = dfGL
 
+    #공통처리
     dfGL['계정과목코드'].astype(str)
+    dfGL['거래처코드'] = dfGL['거래처코드'].fillna("NA")
+    dfGL['전표금액'] = dfGL['전표금액'].fillna(0)
+    dfGL['차변금액'] = dfGL['차변금액'].fillna(0)
+    dfGL['대변금액'] = dfGL['대변금액'].fillna(0)
+    dfGL["Company code"] = dfGL["계정과목코드"].apply(str) + "_" + dfGL["계정과목명"].apply(str) # Company Code # Additional에서 옮겨옴
+    # TO연도CYPY = 0b1 << 0
+    # TO회계월FR전기일자yyyy_mm_dd = 0b1 << 2
+    # TO회계월FR전기일자yyyy_mm = 0b1 << 3
+    # TO회계월FR전기일자yyyymm = 0b1 << 4
+    # TO대변금액FR대변금액MINUS = 0b1 << 5
+    # TO차변금액FR전표금액 = 0b1 << 6
+    # TO차대금액FR전표금액 = 0b1 << 7
+    # TO전표금액FR차대금액 = 0b1 << 8
 
-    dfGL['연도'] = str(year)
+    if Const.TO연도CYPY & Flag:        
+        dfGL['연도'] = str(year)
+        print("연도를 ",str(year),"로 조정")
+    
+    if Const.TO회계월FR전기일자yyyy_mm_dd & Flag:
+        dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
+        print("회계월 from 전기일자 yyyy-mm-dd")
+    if Const.TO회계월FR전기일자yyyy_mm & Flag:
+        dfGL["회계월"] = dfGL['회계월'].apply(lambda x: x[5:]).astype('int') #2023-06
+        print("회계월 from 전기일자 yyyy-mm")
+    if Const.TO회계월FR전기일자yyyymm & Flag:
+        dfGL["회계월"] = dfGL["회계월"].apply(lambda x: x[-2:]).astype('int') # 회계월 가공 :202306
+        print("회계월 from 전기일자 yyyymm")    
+    
+    #dfGL['전기일자'] = dfGL['전기일자'].astype(int).astype('str')
 
-    #dfGL["회계월"] = dfGL["회계월"].apply(lambda x: x[-2:]) # 회계월 가공
-    #dfGL['전기일자'] = dfGL['전기일자'].astype(int).astype(str)
-    dfGL["회계월"] = dfGL['회계월'].apply(lambda x: x[5:]).astype(int)
-    #dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7]) # 회계월 가공
-    #dfGL['회계월'] = dfGL['회계월'].astype(int)
-    dfGL["차변금액"] = np.where(dfGL["전표금액"] > 0, dfGL["전표금액"], 0)
-    dfGL["대변금액"] = np.where(dfGL["전표금액"] < 0, abs(dfGL["전표금액"]), 0)    
+    if Const.TO대변금액FR대변금액MINUS & Flag:
+        dfGL["대변금액"] = dfGL["대변금액"] * -1
+        print("대변금액을 (-)로 조정")
 
-    return dfGL #처리 후 반환
+    if Const.TO차대금액FR전표금액 & Flag:
+        dfGL["차변금액"] = np.where(dfGL["전표금액"] > 0, dfGL["전표금액"], 0)
+        dfGL["대변금액"] = np.where(dfGL["전표금액"] < 0, abs(dfGL["전표금액"]), 0)   
+        print("전표금액에서 차변금액/대변금액 생성")
+
+    if Const.TO전표금액FR차대금액 & Flag:
+        dfGL["전표금액"] = dfGL["차변금액"] + dfGL["대변금액"] #DEBUG
+        print("차변/대변금액에서 전표금액 생성")
+    
+    return dfGL
+    #return dfGL #처리 후 반환. Call by Obj. Ref.이므로 반드시 리턴할 필요는 없으나 수기가공 고려하여
+
 
 #dfGL["전표금액"] = dfGL["차변금액"] - dfGL["대변금액"] # 전표금액 = 차변잔액 - 대변잔액
 # import numpy as np
@@ -99,35 +218,22 @@ def preproc(dfGL, year:str = 'CY') -> pd.DataFrame:
 ##########################################################################
 #dfGL.shape[0]
 
-dfGL = preproc(dfGL, 'CY')
-
-dfGLCY = dfGL
-
+##################################################################
 
 ##################################################################
 
-## PY : 분리되어 있는 경우에 수행한다.
-df = pd.read_csv(myfd.askopenfilename(), sep="\t")#), sheet_name="GL")
-
-# IF EXCEL
-df = pd.read_excel(myfd.askopenfilename())
-
-# a. 자동매핑
-dfGLPY = autoMap(df)
-
-# b. 추가 수기처리
-dfGLPY = preproc(dfGLPY,'PY')
-
-##################################################################
-
+def ConcatCYPY(dfGLCY:pd.DataFrame, dfGLPY:pd.DataFrame) -> pd.DataFrame:
 ## c. Concatenate
-dfGL = pd.DataFrame()
-dfGL = pd.concat([dfGLCY, dfGLPY], axis=0)
-dfGL.shape[0] == dfGLCY.shape[0] + dfGLPY.shape[0]
+    dfGL = pd.DataFrame()
+    dfGL = pd.concat([dfGLCY, dfGLPY], axis=0)
+    print("행수검증>>")
+    print(dfGL.shape[0] == dfGLCY.shape[0] + dfGLPY.shape[0])
+    return dfGL
 
 ###################################
 #검증식 : 차대
-dfGL['전표금액'].sum()
+def dfGLValidate(dfGL:pd.DataFrame):
+    print("전체전표의 합계액 (TOBE 0): ", dfGL['전표금액'].sum())
 
 ###################################
 # 계정과목명 붙임
@@ -145,60 +251,145 @@ dfGL['전표금액'].sum()
 
 # dfGL = dfGLNew
 ###################################
-
 ## 4) FSLine 추가
+def AddFSLineCode(dfGL:pd.DataFrame, tgtdir:str)->pd.DataFrame:
 
-from mylib import myFileDialog as myfd
-import pandas as pd
+    #계정과목 매핑을 읽는다.
+    filenameAcctMap = "acctMAP.xlsx"
+    #tgtdir = myfd.askdirectory()
+    filenameAcctMap = glob.glob(tgtdir+"/"+filenameAcctMap)
+    filenameAcctMap = filenameAcctMap[0]
+    dfAcc = pd.read_excel(filenameAcctMap)
 
-#계정과목 매핑을 읽는다.
-filenameAcctMap = "acctMAP.xlsx"
-#tgtdir = myfd.askdirectory()
-filenameAcctMap = glob.glob(tgtdir+"/"+filenameAcctMap)
-filenameAcctMap = filenameAcctMap[0]
-dfAcc = pd.read_excel(filenameAcctMap)
+    dfAcc["DetailCode"] = dfAcc["DetailCode"].astype('str')
+    #dfGL["계정과목코드"] = dfGL["계정과목코드"].astype(str)
+    dfGL["계정과목코드"] = dfGL["계정과목코드"].astype('float64').astype('int64').astype('str')
 
-dfAcc["DetailCode"] = dfAcc["DetailCode"].astype(str)
-#dfGL["계정과목코드"] = dfGL["계정과목코드"].astype(str)
-dfGL["계정과목코드"] = dfGL["계정과목코드"].astype(float).astype(int).astype(str)
+    dfGLJoin = dfGL.merge(dfAcc,how='left',left_on='계정과목코드',right_on='DetailCode')
 
-dfGLJoin = dfGL.merge(dfAcc,how='left',left_on='계정과목코드',right_on='DetailCode')
-
-# NA Test
-dfGLJoin[dfGLJoin["FSName"].isna()] #Empty여야 함
-dfGLJoin[dfGLJoin["FSName"].isna()]['계정과목코드'].drop_duplicates().to_csv("val_GL_coa_완전성체크.csv", index=None)
+    # NA Test
+    print("FSLine Code 추가에 따른 GL 계정과목 완전성 체크를 실시합니다.")
+    if not dfGLJoin["FSName"].isna().any(): #False여야 함
+        print("완전성체크 PASS.")
+    else:
+        print("FAIL. 추출합니다. (val_GL_coa_완전성체크.csv")
+        dfGLJoin[dfGLJoin["FSName"].isna()]['계정과목코드'].drop_duplicates().to_csv("val_GL_coa_완전성체크.csv", index=None)
+    
+    return dfGLJoin
 ##################################################################
 
 #필수실행
-dfGL = dfGLJoin
+# def AdditionalCleansing(dfGL:pd.DataFrame):
 
+#     ## > 작동을 위해 반드시 적용한다.
+    
 
-## b-2 > 작동을 위해 반드시 적용한다.
-dfGL["Company code"] = dfGL["계정과목코드"].apply(str) + "_" + dfGL["계정과목명"].apply(str) # Company Code
+#     while True:
+#         tmp = input("GL 추가적인 가공이 필요하면 디버깅에서 조정하세요. (객체 dfGL) 아니면 0 입력>>")
+#         if tmp == '0' :
+#             print("계속 진행합니다.")
+#             break
 
+#     print("추가 클렌징 종료.")    
+#     return dfGL
 
-#검증식 : TB vs GL Recon
-# GL LOAD
-dfGL.pivot_table(index=["계정과목코드","계정과목명"],columns="연도",values="전표금액",aggfunc='sum').to_excel("검증_GL.xlsx")
+# #검증식 : TB vs GL Recon
+# # GL LOAD
 
-# TB LOAD from imported
-tbFile = myfd.askopenfilename() #PHW
-pd.read_csv(tbFile, encoding="utf-8-sig", sep="\t").to_excel("검증_TB.xlsx")
+def DoTBGLRecon(dfGL:pd.DataFrame):
+
+    print("TB/GL Recon 기초자료를 추출합니다.")    
+    dfGL.pivot_table(index=["계정과목코드","계정과목명"],columns="연도",values="전표금액",aggfunc='sum').to_excel("검증_GL.xlsx")
+    print("검증_GL.xlsx 추출완료\n")
+
+    # TB LOAD from imported
+    tbFile = myfd.askopenfilename("SELECT dfTB") #PHW
+    pd.read_csv(tbFile, encoding="utf-8-sig", sep="\t").to_excel("검증_TB.xlsx")
+    print("검증_TB.xlsx 추출완료\n")
+
+    print("Recon은 별도로 진행하세요.")
 
 # -> 이후 별도 엑셀에서 TB GL Recon한다.
 ##################################################################
 # 추출
-import os
-if not os.path.exists("./imported"):
-    os.makedirs("./imported")
 
-# EXPORT
-dfGL.to_csv("./imported/dfGL.tsv", sep="\t", index=None)
+def ExportDF(dfGL:pd.DataFrame):
 
-#dfGLPY['전표금액'].sum()
-#dfGLPY.groupby('계정과목코드').sum()
+    if not os.path.exists("./imported"):
+        os.makedirs("./imported")        
+    # EXPORT    
+    print("dfGL을 생성합니다.")    
+    dfGL.to_csv("./imported/dfGL.tsv", sep="\t", index=None)
+    print("dfGL을 생성 완료합니다.")
+    #dfGLPY['전표금액'].sum()
+    #dfGLPY.groupby('계정과목코드').sum()
+
+def ManualPreprocess(dfGL:pd.DataFrame) -> pd.DataFrame:
+    df = dfGL
+
+    while True:
+        tmp = input("GL 추가적인 가공이 필요하면 디버깅에서 조정하세요. (객체 df) 아니면 0 입력>>")
+        if tmp == '0' :
+            print("계속 진행합니다.")
+            return df
+    
 
 
+if __name__=="__main__":
 
+    print("GL Processing START:")
+    tgtdir = MoveFolder()
+    print("Import CY")
+    if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':
+        df = ImportGL(True)
+    else:        
+        df = TempDF(False,None,"temp_CY.pickle")
+    dfGL = AutoMap(df, tgtdir)
 
+    #Flag = 0b0 #상수. 필요한 경우 조정하여 사용
+    Flag = ReadFlag(tgtdir)
+    dfGL = UserDefinedProc(dfGL, 'CY', Flag)
+    dfGL = ManualPreprocess(dfGL)
 
+    dfGLCY = dfGL
+    print("CY Done")
+
+    ## PY : 분리되어 있는 경우에 수행한다.
+    if input("PY 추가진행한다면 Y>") == 'Y':
+        #df = ImportGL(True)
+        if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':
+            df = ImportGL(True)
+        else:        
+            df = TempDF(False,None,"temp_PY.pickle")
+        dfGL = AutoMap(df, tgtdir)
+        dfGL = UserDefinedProc(dfGL, 'PY', Flag) #Flag는 CY와 동일하다고 봄
+        dfGL = ManualPreprocess(dfGL)
+        dfGLPY = dfGL
+        print("CY Done")
+        dfGL = ConcatCYPY(dfGLCY, dfGLPY)
+    else:
+        dfGL = dfGLCY
+    
+    dfGLValidate(dfGL)
+    dfGLJoin = AddFSLineCode(dfGL,tgtdir)
+    dfGL = dfGLJoin
+    #AdditionalCleansing(dfGL) #Call by Obj. Refe이므로 return 불필요) #UserDefinedProc으로 옮김
+    DoTBGLRecon(dfGL)
+    ExportDF(dfGL)
+    print("GL Processing END..:")
+
+### 원익머트리얼즈
+#연도 : 수기입력
+#회계월 : 전표일자에서 추출
+#거래처코드 : fillna
+#전표금액 : 생성
+
+# #FOR 비트연산
+# TO연도CYPY = 0b1 << 0
+# TO회계월FR전기일자yyyy_mm_dd = 0b1 << 2
+# TO회계월FR전기일자yyyy_mm = 0b1 << 3
+# TO회계월FR전기일자yyyymm = 0b1 << 4
+# TO대변금액FR대변금액MINUS = 0b1 << 5
+# TO차변금액FR전표금액 = 0b1 << 6
+# TO차대금액FR전표금액 = 0b1 << 7
+# TO전표금액FR차대금액 = 0b1 << 8

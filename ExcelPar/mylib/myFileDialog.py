@@ -7,23 +7,25 @@ import tkinter as tk
 import tkinter.filedialog as fd
 import os
 
-def askopenfilename() -> str :
+def askopenfilename(title:str="열기") -> str :
     root = tk.Tk()
     root.attributes('-topmost', True)
     root.withdraw()
     path = fd.askopenfilename(
         parent=root,
-        initialdir=os.getcwd())
+        initialdir=os.getcwd(),
+        title=title)
     root.destroy()
     return path
 
-def askdirectory() -> str :
+def askdirectory(title:str="열기") -> str :
     root = tk.Tk()
     root.attributes('-topmost', True)
     root.withdraw()
     path = fd.askdirectory(
         parent=root,
-        initialdir=os.getcwd())
+        initialdir=os.getcwd(),
+        title=title)
     root.destroy()
     return path    
 
