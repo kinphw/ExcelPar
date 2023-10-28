@@ -5,7 +5,7 @@
 # FOR 인터프리터
 # v0.0.1 DD 231024
 
-from mylib import myFileDialog as myfd
+from ExcelPar.mylib import myFileDialog as myfd
 import pandas as pd
 import openpyxl
 import clipboard

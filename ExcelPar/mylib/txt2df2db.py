@@ -12,7 +12,7 @@
 import pandas as pd
 import tqdm
 import sys #매개변수 읽기위해
-from mylib import myFileDialog as myfd #주. 라이브러리 소재 경로가 아니라 호출하는 코드 경로 기준임.
+from ExcelPar.mylib import myFileDialog as myfd #주. 라이브러리 소재 경로가 아니라 호출하는 코드 경로 기준임.
 
 ## PART1. txt 2 DF
 
