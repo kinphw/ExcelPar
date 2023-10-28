@@ -1,2 +1,7 @@
 # Excel Par
-# WOW
+
+Excel Par Sourcecode.
+
+# How to use
+
+import ExcelPar
