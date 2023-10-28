@@ -117,5 +117,8 @@ class ExcelPar:
 
         print("###EXCEL PAR END:...")        
 
+def RunEP():
+    ExcelPar.Handler()
+
 if(__name__=="__main__"):
     pass    

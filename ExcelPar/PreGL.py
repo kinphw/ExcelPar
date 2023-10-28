@@ -18,13 +18,15 @@ import openpyxl
 class Const:
     #FOR 비트연산을 위한 상수
     TO연도CYPY = 0b1 << 0
-    TO회계월FR전기일자yyyy_mm_dd = 0b1 << 2
+    TO회계월FR전기일자yyyy_mm_dd = 0b1 << 2 #2023-01-01
     TO회계월FR전기일자yyyy_mm = 0b1 << 3
     TO회계월FR전기일자yyyymm = 0b1 << 4
-    TO대변금액FR대변금액MINUS = 0b1 << 5
-    TO차변금액FR전표금액 = 0b1 << 6
+    TO회계월FR전기일자yyyy_mm_ddDOT = 0b1 << 6 #2023.01.01
+    TO대변금액FR대변금액MINUS = 0b1 << 5    
     TO차대금액FR전표금액 = 0b1 << 7
     TO전표금액FR차대금액 = 0b1 << 8
+
+    TO계정과목명FRDetailName = 0b1 << 11
 
 #변수생성부
 
@@ -53,7 +55,7 @@ def MoveFolder()->str:
 
 ##################################################################
 
-def TempDF(Flag:bool=True, df:pd.DataFrame = None, Filename:str="temp.pickle") -> pd.DataFrame: #True면 저장, False면 불러오기
+def TempDF(Flag:bool=True, df:pd.DataFrame = None) -> pd.DataFrame: #True면 저장, False면 불러오기
 
     #임시저장하는 파일
     #Filename = "temp.pickle"
@@ -71,13 +73,13 @@ def TempDF(Flag:bool=True, df:pd.DataFrame = None, Filename:str="temp.pickle") -
         if not input("임시로드한다면 Y>>") == "Y":
             print("임시로드하지 않습니다")
             return            
-        Filename = print("임시저장 파일을 로드합니다. 로드할파일명>")
+        Filename = input("임시저장 파일을 로드합니다. 로드할파일명>")
         df = pd.read_pickle(Filename)        
         print("임시파일 로드완료")
     return df
         
 
-def ImportGL(bMultisheet:bool=False)->pd.DataFrame:
+def ImportGL(bExcel:bool=True, bMultisheet:bool=False)->pd.DataFrame:
     
     filename = myfd.askopenfilename("Select GL")
     
@@ -89,26 +91,56 @@ def ImportGL(bMultisheet:bool=False)->pd.DataFrame:
     
     #파일을 읽어서 시트 수를 찾아낸다
 
-    if bMultisheet:            
-        print("복수 시트를 읽습니다.)")
-        wb = openpyxl.load_workbook(filename, read_only=True) #read_only for speed
-        print(filename)
-        sheetCount = len(wb.sheetnames)
-        print("시트수:",sheetCount)
-        df = pd.DataFrame()
+    if not bExcel: #엑셀이 아닌 경우
+        print("tsv를 읽습니다.")
+        df = pd.read_csv(filename, sep="\t")
+    
+    else: #엑셀인 경우
 
-        for i in range(sheetCount):
-            dfTmp = pd.read_excel(filename,sheet_name=i) #Should be i
-            df = pd.concat([df, dfTmp])
-            print(i,"번째 시트를 합쳤습니다.")
-    else:
-        print("단일 파일을 추출합니다.")
-        df = pd.read_excel(filename)
+        if bMultisheet: #복수시트인 경우
+            print("복수 시트를 읽습니다.)")
+            wb = openpyxl.load_workbook(filename, read_only=True) #read_only for speed
+            print(filename)
+            sheetCount = len(wb.sheetnames)
+            print("시트수:",sheetCount)
+            df = pd.DataFrame()
+
+            for i in range(sheetCount):
+                dfTmp = pd.read_excel(filename,sheet_name=i) #Should be i
+                df = pd.concat([df, dfTmp])
+                print(i,"번째 시트를 합쳤습니다.")
+        else:
+            print("단일 파일을 추출합니다.")
+            df = pd.read_excel(filename)
 
     TempDF(True)
 
     print("데이터프레임을 반환합니다.")
     return df
+
+
+def ImportGLWraper() -> pd.DataFrame:
+    #1. 읽을것인지, 백업파일을 불러올 것인지        
+
+    #1-1. 읽는다.
+    if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':        
+        
+        bExcel = input("엑셀이면 Y>") == 'Y'
+        if bExcel:            
+            bMultisheet = input("엑셀이 복수 시트면 Y>") == 'Y'            
+            df = ImportGL(bExcel, bMultisheet)                
+        
+        else:   #엑셀이 아닌 TSV
+            print("tsv를 상정합니다.")
+            df = ImportGL(bExcel)
+            pass
+    
+    #1-2. 백업을 불러온다.
+    else:                
+        df = TempDF(False) #불러온 결과가 df
+        
+
+    return df    
 
 def AutoMap(df:pd.DataFrame, tgtdir:str)-> pd.DataFrame:
     
@@ -188,8 +220,12 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
         print("회계월 from 전기일자 yyyy-mm")
     if Const.TO회계월FR전기일자yyyymm & Flag:
         dfGL["회계월"] = dfGL["회계월"].apply(lambda x: x[-2:]).astype('int') # 회계월 가공 :202306
-        print("회계월 from 전기일자 yyyymm")    
-    
+        print("회계월 from 전기일자 yyyymm")        
+    if Const.TO회계월FR전기일자yyyy_mm_ddDOT & Flag:        
+        dfGL['전기일자'] = dfGL['전기일자'].apply(lambda x:x.replace(".","-")) #먼저 .을 -로 바꾼다.
+        dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
+        print("회계월 from 전기일자 yyyy.mm.dd")
+
     #dfGL['전기일자'] = dfGL['전기일자'].astype(int).astype('str')
 
     if Const.TO대변금액FR대변금액MINUS & Flag:
@@ -279,19 +315,16 @@ def AddFSLineCode(dfGL:pd.DataFrame, tgtdir:str)->pd.DataFrame:
 ##################################################################
 
 #필수실행
-# def AdditionalCleansing(dfGL:pd.DataFrame):
+def AdditionalCleansing(dfGL:pd.DataFrame, Flag:bin) -> pd.DataFrame:    
 
-#     ## > 작동을 위해 반드시 적용한다.
+    print("Case by Case 추가 클렌징 시작.")    
     
-
-#     while True:
-#         tmp = input("GL 추가적인 가공이 필요하면 디버깅에서 조정하세요. (객체 dfGL) 아니면 0 입력>>")
-#         if tmp == '0' :
-#             print("계속 진행합니다.")
-#             break
-
-#     print("추가 클렌징 종료.")    
-#     return dfGL
+    if Const.TO계정과목명FRDetailName & Flag:    
+        dfGL['계정과목명'] = dfGL['DetailName'] #FOR 계정과목명이 GL 원파일에 없는 경우. 사후적으로 붙여줌
+        print("계정과목명 추가함")
+    
+    print("Case by Case 추가 클렌징 종료.")    
+    return dfGL
 
 # #검증식 : TB vs GL Recon
 # # GL LOAD
@@ -332,51 +365,96 @@ def ManualPreprocess(dfGL:pd.DataFrame) -> pd.DataFrame:
         if tmp == '0' :
             print("계속 진행합니다.")
             return df
-    
 
+class Run:    
+    @classmethod
+    def Run(cls):
+        print("GL Processing START:")
+        tgtdir = MoveFolder()
+        print("Import CY")
+        df = ImportGLWraper()
+        dfGL = AutoMap(df, tgtdir)
+
+        #Flag = 0b0 #상수. 필요한 경우 조정하여 사용
+        Flag = ReadFlag(tgtdir)
+        dfGL = UserDefinedProc(dfGL, 'CY', Flag)
+        #dfGL = ManualPreprocess(dfGL)
+
+        dfGLCY = dfGL
+        print("CY Done")
+
+        ## PY : 분리되어 있는 경우에 수행한다.
+        if input("PY 추가진행한다면 Y>") == 'Y':
+            #df = ImportGL(True)
+            dfGL = ImportGLWraper()
+            dfGL = AutoMap(df, tgtdir)
+            dfGL = UserDefinedProc(dfGL, 'PY', Flag) #Flag는 CY와 동일하다고 봄
+            #dfGL = ManualPreprocess(dfGL)
+            dfGLPY = dfGL
+            print("CY Done")
+            dfGL = ConcatCYPY(dfGLCY, dfGLPY)
+        else:
+            dfGL = dfGLCY
+        
+        dfGLValidate(dfGL)
+
+        dfGLJoin = AddFSLineCode(dfGL,tgtdir)
+        dfGL = dfGLJoin
+
+        dfGL = AdditionalCleansing(dfGL, Flag) #필요한 경우 추가 정의하여 사용
+
+        #최종단계
+        DoTBGLRecon(dfGL)
+
+        ExportDF(dfGL)
+        print("GL Processing END..:")
+
+def RunPreGL():
+    Run.Run()
 
 if __name__=="__main__":
+    Run.Run()
 
-    print("GL Processing START:")
-    tgtdir = MoveFolder()
-    print("Import CY")
-    if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':
-        df = ImportGL(True)
-    else:        
-        df = TempDF(False,None,"temp_CY.pickle")
-    dfGL = AutoMap(df, tgtdir)
+    # print("GL Processing START:")
+    # tgtdir = MoveFolder()
+    # print("Import CY")
+    # if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':
+    #     df = ImportGL(True)
+    # else:        
+    #     df = TempDF(False,None,"temp_CY.pickle")
+    # dfGL = AutoMap(df, tgtdir)
 
-    #Flag = 0b0 #상수. 필요한 경우 조정하여 사용
-    Flag = ReadFlag(tgtdir)
-    dfGL = UserDefinedProc(dfGL, 'CY', Flag)
-    dfGL = ManualPreprocess(dfGL)
+    # #Flag = 0b0 #상수. 필요한 경우 조정하여 사용
+    # Flag = ReadFlag(tgtdir)
+    # dfGL = UserDefinedProc(dfGL, 'CY', Flag)
+    # dfGL = ManualPreprocess(dfGL)
 
-    dfGLCY = dfGL
-    print("CY Done")
+    # dfGLCY = dfGL
+    # print("CY Done")
 
-    ## PY : 분리되어 있는 경우에 수행한다.
-    if input("PY 추가진행한다면 Y>") == 'Y':
-        #df = ImportGL(True)
-        if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':
-            df = ImportGL(True)
-        else:        
-            df = TempDF(False,None,"temp_PY.pickle")
-        dfGL = AutoMap(df, tgtdir)
-        dfGL = UserDefinedProc(dfGL, 'PY', Flag) #Flag는 CY와 동일하다고 봄
-        dfGL = ManualPreprocess(dfGL)
-        dfGLPY = dfGL
-        print("CY Done")
-        dfGL = ConcatCYPY(dfGLCY, dfGLPY)
-    else:
-        dfGL = dfGLCY
+    # ## PY : 분리되어 있는 경우에 수행한다.
+    # if input("PY 추가진행한다면 Y>") == 'Y':
+    #     #df = ImportGL(True)
+    #     if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':
+    #         df = ImportGL(True)
+    #     else:        
+    #         df = TempDF(False,None,"temp_PY.pickle")
+    #     dfGL = AutoMap(df, tgtdir)
+    #     dfGL = UserDefinedProc(dfGL, 'PY', Flag) #Flag는 CY와 동일하다고 봄
+    #     dfGL = ManualPreprocess(dfGL)
+    #     dfGLPY = dfGL
+    #     print("CY Done")
+    #     dfGL = ConcatCYPY(dfGLCY, dfGLPY)
+    # else:
+    #     dfGL = dfGLCY
     
-    dfGLValidate(dfGL)
-    dfGLJoin = AddFSLineCode(dfGL,tgtdir)
-    dfGL = dfGLJoin
-    #AdditionalCleansing(dfGL) #Call by Obj. Refe이므로 return 불필요) #UserDefinedProc으로 옮김
-    DoTBGLRecon(dfGL)
-    ExportDF(dfGL)
-    print("GL Processing END..:")
+    # dfGLValidate(dfGL)
+    # dfGLJoin = AddFSLineCode(dfGL,tgtdir)
+    # dfGL = dfGLJoin
+    # #AdditionalCleansing(dfGL) #Call by Obj. Refe이므로 return 불필요) #UserDefinedProc으로 옮김
+    # DoTBGLRecon(dfGL)
+    # ExportDF(dfGL)
+    # print("GL Processing END..:")
 
 ### 원익머트리얼즈
 #연도 : 수기입력

@@ -2,6 +2,7 @@
 # BKPF BSEG join for 신영 => raw를 만드는 과정. 이후에는 공통 전처리 메서드 적용
 ######################################################################
 
+# FOR 인터프리터
 # v0.0.1 DD 231024
 
 from mylib import myFileDialog as myfd

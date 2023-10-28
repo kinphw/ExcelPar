@@ -4,8 +4,6 @@
 # v 0.0.1 DD 231023
 ###
 
-## 인터프리터에서 수행을 권장
-
 # 검증1순위 : 차대일치
 # 검증2순위 : TB vs GL recon
 ##################################################################
@@ -22,7 +20,7 @@ import glob
 #0. 편의를 위한 폴더 이동
 
 def MoveFolder()->str:
-    tgtdir = myfd.askdirectory("기본 WORK폴더 지정(ACCT, IMPORTMAP 있는)")
+    tgtdir = myfd.askdirectory("기본 WORK폴더 지정(AcctMAP, ImportMAP 있는)")
     os.chdir(tgtdir)
     print("폴더를 이동했습니다.")
     return tgtdir
@@ -141,11 +139,11 @@ def AdditionalCleansing(dfTB:pd.DataFrame):
     else:
         print("계정코드 중복없음. PASS")
 
-    while True:
-        tmp = input("추가적인 가공이 필요하면 디버깅하세요. 아니면 0 입력>>")
-        if tmp == '0' :
-            print("진행시켜..")
-            break
+    # while True:
+    #     tmp = input("추가적인 가공이 필요하면 디버깅하세요. 아니면 0 입력>>")
+    #     if tmp == '0' :
+    #         print("진행시켜..")
+    #         break
 
 
 def ExportDF(dfTB:pd.DataFrame):
@@ -158,13 +156,28 @@ def ExportDF(dfTB:pd.DataFrame):
     dfTB.to_csv("./imported/dfTB.tsv", sep="\t", index=None)
     print("dfTB 생성완료")
 
+class Run:
+    @classmethod
+    def Run(cls):
+        print("TB Processing START:")
+        tgtdir = MoveFolder()
+        df = ImportTB()
+        dfTB = autoMap(df, tgtdir)
+        dfTB = AddFSLineCode(dfTB,tgtdir)
+        AdditionalCleansing(dfTB) #Call by Obj. Refe이므로 return 불필요)    
+        ExportDF(dfTB)
+        print("TB Processing END..:")
+
+def RunPreTB():
+    Run.Run()
 
 if __name__=="__main__":
-    print("TB Processing START:")
-    tgtdir = MoveFolder()
-    df = ImportTB()
-    dfTB = autoMap(df, tgtdir)
-    dfTB = AddFSLineCode(dfTB,tgtdir)
-    AdditionalCleansing(dfTB) #Call by Obj. Refe이므로 return 불필요)    
-    ExportDF(dfTB)
-    print("TB Processing END..:")
+    Run.Run()
+    # print("TB Processing START:")
+    # tgtdir = MoveFolder()
+    # df = ImportTB()
+    # dfTB = autoMap(df, tgtdir)
+    # dfTB = AddFSLineCode(dfTB,tgtdir)
+    # AdditionalCleansing(dfTB) #Call by Obj. Refe이므로 return 불필요)    
+    # ExportDF(dfTB)
+    # print("TB Processing END..:")

@@ -66,4 +66,17 @@ test(TEST)
 
 from hehe import CONSTA
 
+import pandas as pd
 
+import ExcelPar.mylib.myFileDialog as myfd
+path = myfd.askopenfilename()
+
+tmp = pd.read_excel(path)
+
+tt = {
+    'a' : ['a', 'aa', 'abc']
+}
+
+tmp = pd.DataFrame(tt)
+
+tmp['a'].apply(lambda x:x.replace('a','d'))
