@@ -67,7 +67,7 @@ class SummarizeMonthlyVarAmount:
         selected_columns = avg_bal1.columns[start_column:end_column]    
 
         # 선택한 열에 대해서만 cumsum 수행
-        avg_bal1[selected_columns] = avg_bal1[selected_columns].fillna(0).cumsum(axis=1)
+        avg_bal1.loc[:,selected_columns] = avg_bal1[selected_columns].fillna(0).cumsum(axis=1) #DEBUG
 
         ################ 저장 ######################
 

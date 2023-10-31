@@ -16,13 +16,13 @@ class CreateLeadReport:
         분석적검토1 = 분석적검토[분석적검토["분석대상"] == "O"]
         # 분석적검토
 
-        분석적검토1["주요증감"] = ""
-        분석적검토1["Refer to 주요증감_파일"] = ""
+        분석적검토1.loc[:,"주요증감"] = ""
+        분석적검토1.loc[:,"Refer to 주요증감_파일"] = ""
 
-        분석적검토1["주요증감"]= SetGlobal.검토문장 #Global
+        분석적검토1.loc[:,"주요증감"]= SetGlobal.검토문장 #Global
         #231025 DEBUG : 만약, TB COA에 중복이 있는 경우 여기서 걸림. 따라서 TB COA에 중복이 있으면 안됨
         
-        분석적검토1["Refer to 주요증감_파일"] = "분석보고서_" + SetGlobal.분석계정과목 + ".xlsx"
+        분석적검토1.loc[:,"Refer to 주요증감_파일"] = "분석보고서_" + SetGlobal.분석계정과목 + ".xlsx"
 
         # 분석적검토와 분석적검토1을 합치기
         분석적검토 = pd.concat([분석적검토, 분석적검토1], ignore_index=True)

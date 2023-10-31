@@ -20,8 +20,9 @@ class Const:
     TO연도CYPY = 0b1 << 0
     TO회계월FR전기일자yyyy_mm_dd = 0b1 << 2 #2023-01-01
     TO회계월FR전기일자yyyy_mm = 0b1 << 3
-    TO회계월FR전기일자yyyymm = 0b1 << 4
-    TO회계월FR전기일자yyyy_mm_ddDOT = 0b1 << 6 #2023.01.01
+    TO회계월FR전기일자yyyymm = 0b1 << 4 #yyyymmdd도 사용
+    TO회계월FR전기일자yyyy_mm_ddDOT = 0b1 << 6 #2023.01.01    
+
     TO대변금액FR대변금액MINUS = 0b1 << 5    
     TO차대금액FR전표금액 = 0b1 << 7
     TO전표금액FR차대금액 = 0b1 << 8
@@ -113,7 +114,7 @@ def ImportGL(bExcel:bool=True, bMultisheet:bool=False)->pd.DataFrame:
             print("단일 파일을 추출합니다.")
             df = pd.read_excel(filename)
 
-    TempDF(True)
+    TempDF(True, df)
 
     print("데이터프레임을 반환합니다.")
     return df
@@ -148,7 +149,14 @@ def AutoMap(df:pd.DataFrame, tgtdir:str)-> pd.DataFrame:
     #tgtdir = myfd.askdirectory()
     filenameImportMap = glob.glob(tgtdir+"/"+filenameImportMap)
     filenameImportMap = filenameImportMap[0]
-    dfMap = pd.read_excel(filenameImportMap, sheet_name="MAP_GL")
+    while True:
+        try:
+            dfMap = pd.read_excel(filenameImportMap, sheet_name="MAP_GL")
+            break
+        except Exception as e:
+            print(e)
+            print("ImportMAP.xlsx 파일이 열려 있는 것 같습니다.")
+            input(">>")
 
     ## a. MAP 대상 먼저 전처리
     dfMapMap = dfMap[dfMap['방법'] == 'MAP']
@@ -213,13 +221,13 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
         print("연도를 ",str(year),"로 조정")
     
     if Const.TO회계월FR전기일자yyyy_mm_dd & Flag:
-        dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
+        dfGL["회계월"] = dfGL["전기일자"].apply('str').apply(lambda x: x[5:7])  #2023-01-01        
         print("회계월 from 전기일자 yyyy-mm-dd")
     if Const.TO회계월FR전기일자yyyy_mm & Flag:
-        dfGL["회계월"] = dfGL['회계월'].apply(lambda x: x[5:]).astype('int') #2023-06
+        dfGL["회계월"] = dfGL['전기일자'].apply(lambda x: x[5:]).astype('int') #2023-06
         print("회계월 from 전기일자 yyyy-mm")
     if Const.TO회계월FR전기일자yyyymm & Flag:
-        dfGL["회계월"] = dfGL["회계월"].apply(lambda x: x[-2:]).astype('int') # 회계월 가공 :202306
+        dfGL["회계월"] = dfGL["전기일자"].astype('int64').astype('str').apply(lambda x: x[4:6]).astype('int64') # 회계월 가공 :202306
         print("회계월 from 전기일자 yyyymm")        
     if Const.TO회계월FR전기일자yyyy_mm_ddDOT & Flag:        
         dfGL['전기일자'] = dfGL['전기일자'].apply(lambda x:x.replace(".","-")) #먼저 .을 -로 바꾼다.
@@ -352,7 +360,14 @@ def ExportDF(dfGL:pd.DataFrame):
         os.makedirs("./imported")        
     # EXPORT    
     print("dfGL을 생성합니다.")    
-    dfGL.to_csv("./imported/dfGL.tsv", sep="\t", index=None)
+    while True:
+        try:    
+            dfGL.to_csv("./imported/dfGL.tsv", sep="\t", index=None)
+            break
+        except Exception as e:
+            print(e)
+            print("파일이 열려있는것 같습니다.. 파일을 삭제하시고 엔터를 누르세요.")
+            input(">>")
     print("dfGL을 생성 완료합니다.")
     #dfGLPY['전표금액'].sum()
     #dfGLPY.groupby('계정과목코드').sum()
@@ -386,12 +401,12 @@ class Run:
         ## PY : 분리되어 있는 경우에 수행한다.
         if input("PY 추가진행한다면 Y>") == 'Y':
             #df = ImportGL(True)
-            dfGL = ImportGLWraper()
+            df = ImportGLWraper() #DEBUG : 231101
             dfGL = AutoMap(df, tgtdir)
             dfGL = UserDefinedProc(dfGL, 'PY', Flag) #Flag는 CY와 동일하다고 봄
             #dfGL = ManualPreprocess(dfGL)
             dfGLPY = dfGL
-            print("CY Done")
+            print("PY Done")
             dfGL = ConcatCYPY(dfGLCY, dfGLPY)
         else:
             dfGL = dfGLCY
@@ -414,53 +429,6 @@ def RunPreGL():
 
 if __name__=="__main__":
     Run.Run()
-
-    # print("GL Processing START:")
-    # tgtdir = MoveFolder()
-    # print("Import CY")
-    # if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':
-    #     df = ImportGL(True)
-    # else:        
-    #     df = TempDF(False,None,"temp_CY.pickle")
-    # dfGL = AutoMap(df, tgtdir)
-
-    # #Flag = 0b0 #상수. 필요한 경우 조정하여 사용
-    # Flag = ReadFlag(tgtdir)
-    # dfGL = UserDefinedProc(dfGL, 'CY', Flag)
-    # dfGL = ManualPreprocess(dfGL)
-
-    # dfGLCY = dfGL
-    # print("CY Done")
-
-    # ## PY : 분리되어 있는 경우에 수행한다.
-    # if input("PY 추가진행한다면 Y>") == 'Y':
-    #     #df = ImportGL(True)
-    #     if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':
-    #         df = ImportGL(True)
-    #     else:        
-    #         df = TempDF(False,None,"temp_PY.pickle")
-    #     dfGL = AutoMap(df, tgtdir)
-    #     dfGL = UserDefinedProc(dfGL, 'PY', Flag) #Flag는 CY와 동일하다고 봄
-    #     dfGL = ManualPreprocess(dfGL)
-    #     dfGLPY = dfGL
-    #     print("CY Done")
-    #     dfGL = ConcatCYPY(dfGLCY, dfGLPY)
-    # else:
-    #     dfGL = dfGLCY
-    
-    # dfGLValidate(dfGL)
-    # dfGLJoin = AddFSLineCode(dfGL,tgtdir)
-    # dfGL = dfGLJoin
-    # #AdditionalCleansing(dfGL) #Call by Obj. Refe이므로 return 불필요) #UserDefinedProc으로 옮김
-    # DoTBGLRecon(dfGL)
-    # ExportDF(dfGL)
-    # print("GL Processing END..:")
-
-### 원익머트리얼즈
-#연도 : 수기입력
-#회계월 : 전표일자에서 추출
-#거래처코드 : fillna
-#전표금액 : 생성
 
 # #FOR 비트연산
 # TO연도CYPY = 0b1 << 0

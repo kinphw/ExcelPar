@@ -9,12 +9,14 @@
 ##################################################################
 
 #전역부
-from ExcelPar.mylib import myFileDialog as myfd
 import pandas as pd
 import clipboard
 import os
 import numpy as np
 import glob
+
+from ExcelPar.mylib import myFileDialog as myfd
+from ExcelPar.mylib.ErrRetry import ErrRetry
 
 ##################################################################
 #0. 편의를 위한 폴더 이동
@@ -31,8 +33,18 @@ def MoveFolder()->str:
 
 #2. TB Import :필요한부만 활성화
 def ImportTB() -> pd.DataFrame:
-    df = pd.read_excel(myfd.askopenfilename("TB파일 선택"))#, sheet_name="IMPORT")
-    #df = pd.read_excel(myfd.askopenfilename("TB파일을 선택"), sheet_name="TB")
+    while True:
+        try:
+            tmp = input("Excel : 1, csv : 2>>")
+            if int(tmp) == 1:
+                df = pd.read_excel(myfd.askopenfilename("TB파일 선택"))#, sheet_name="IMPORT")    
+            elif int(tmp) == 2:
+                df = pd.read_csv(myfd.askopenfilename("TB파일을 선택"))
+            break
+        except Exception as e:
+            print(e)
+            print("오류. 다시 선택하세요.")
+
     df = df.fillna(0) #전처리 - NaN to 0
     print("TB Imported")
     return df
@@ -60,10 +72,11 @@ def ExportHeader():
 
 
 #폴더를 지정한 후, 지정 폴더에서 ImportMAP.xlsx를 찾습니다.
+@ErrRetry
 def autoMap(df:pd.DataFrame, tgtdir:str)->pd.DataFrame :
 
+    print("Auto Mapping. Read ImportMAP.xlsx")
     filenameImportMap = "ImportMAP.xlsx"
-
     filenameImportMap = glob.glob(tgtdir+"/"+filenameImportMap)
     filenameImportMap = filenameImportMap[0]
     dfMap = pd.read_excel(filenameImportMap, sheet_name="MAP_TB")
