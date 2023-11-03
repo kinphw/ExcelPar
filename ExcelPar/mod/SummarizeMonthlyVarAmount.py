@@ -54,7 +54,8 @@ class SummarizeMonthlyVarAmount:
         columns = ['T1', 'T2', 'T3', 'T4','Company code','통제활동의존', '위험수준', '증감금액', '증감비율', 'Threshold', '분석대상', '계정과목코드','계정과목명','PY']
         start_column = len(columns) - 1
         
-        TmpList = gl_당기['회계월'].drop_duplicates().to_list() #당기 월수를 추출하고,
+        TmpList = gl_당기['회계월'].drop_duplicates().to_list() #당기 월수를 추출하고,        
+        TmpList = pd.Series(TmpList).dropna().to_list() #231102 DEBUG, dropna (회계월이 NaN인 경우 삭제)
         TmpList.sort() #오름차순 정렬한다. (누적합을 위해)
         columns = columns + TmpList #합치고,
         columns.append('CY') #마지막에 당기말 포함

@@ -7,13 +7,17 @@
 ##################################################################
 
 #전역부
-from ExcelPar.mylib import myFileDialog as myfd
 import pandas as pd
 import clipboard
 import glob
 import os
 import numpy as np
 import openpyxl
+
+from ExcelPar.mylib import myFileDialog as myfd
+from ExcelPar.mylib.ErrRetry import ErrRetry
+
+#################################################################
 
 class Const:
     #FOR 비트연산을 위한 상수
@@ -56,6 +60,7 @@ def MoveFolder()->str:
 
 ##################################################################
 
+@ErrRetry
 def TempDF(Flag:bool=True, df:pd.DataFrame = None) -> pd.DataFrame: #True면 저장, False면 불러오기
 
     #임시저장하는 파일
@@ -80,6 +85,7 @@ def TempDF(Flag:bool=True, df:pd.DataFrame = None) -> pd.DataFrame: #True면 저
     return df
         
 
+@ErrRetry
 def ImportGL(bExcel:bool=True, bMultisheet:bool=False)->pd.DataFrame:
     
     filename = myfd.askopenfilename("Select GL")
@@ -120,6 +126,7 @@ def ImportGL(bExcel:bool=True, bMultisheet:bool=False)->pd.DataFrame:
     return df
 
 
+@ErrRetry
 def ImportGLWraper() -> pd.DataFrame:
     #1. 읽을것인지, 백업파일을 불러올 것인지        
 
@@ -143,6 +150,7 @@ def ImportGLWraper() -> pd.DataFrame:
 
     return df    
 
+@ErrRetry
 def AutoMap(df:pd.DataFrame, tgtdir:str)-> pd.DataFrame:
     
     filenameImportMap = "ImportMAP.xlsx"
@@ -172,6 +180,7 @@ def AutoMap(df:pd.DataFrame, tgtdir:str)-> pd.DataFrame:
     
     return dfGL
 
+@ErrRetry
 def ReadFlag(tgtdir:str)->bin:
     print("ImportMap.xlsx에서 Flag를 읽습니다.")
     filenameImportMap = "ImportMAP.xlsx"
@@ -196,6 +205,7 @@ def ReadFlag(tgtdir:str)->bin:
 ##########################################################################
 
 
+@ErrRetry
 def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:    
     # 수기처리 => 회사에 따라 적절히 변형하여 적용한다.    
     dfGL = dfGL
@@ -221,7 +231,7 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
         print("연도를 ",str(year),"로 조정")
     
     if Const.TO회계월FR전기일자yyyy_mm_dd & Flag:
-        dfGL["회계월"] = dfGL["전기일자"].apply('str').apply(lambda x: x[5:7])  #2023-01-01        
+        dfGL["회계월"] = dfGL["전기일자"].astype('str').apply(lambda x: x[5:7])  #2023-01-01        
         print("회계월 from 전기일자 yyyy-mm-dd")
     if Const.TO회계월FR전기일자yyyy_mm & Flag:
         dfGL["회계월"] = dfGL['전기일자'].apply(lambda x: x[5:]).astype('int') #2023-06
@@ -246,7 +256,8 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
         print("전표금액에서 차변금액/대변금액 생성")
 
     if Const.TO전표금액FR차대금액 & Flag:
-        dfGL["전표금액"] = dfGL["차변금액"] + dfGL["대변금액"] #DEBUG
+        dfGL["전표금액"] = pd.to_numeric(dfGL["차변금액"],errors='coerce') + pd.to_numeric(dfGL["대변금액"], errors='coerce') #DEBUG : 대변이 (-)여야 정상적용됨
+        #DEBUG 231101 : 오류처리를 위해 to_numeric 적용
         print("차변/대변금액에서 전표금액 생성")
     
     return dfGL
@@ -266,6 +277,7 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
 
 ##################################################################
 
+@ErrRetry
 def ConcatCYPY(dfGLCY:pd.DataFrame, dfGLPY:pd.DataFrame) -> pd.DataFrame:
 ## c. Concatenate
     dfGL = pd.DataFrame()
@@ -296,6 +308,7 @@ def dfGLValidate(dfGL:pd.DataFrame):
 # dfGL = dfGLNew
 ###################################
 ## 4) FSLine 추가
+@ErrRetry
 def AddFSLineCode(dfGL:pd.DataFrame, tgtdir:str)->pd.DataFrame:
 
     #계정과목 매핑을 읽는다.
@@ -337,6 +350,7 @@ def AdditionalCleansing(dfGL:pd.DataFrame, Flag:bin) -> pd.DataFrame:
 # #검증식 : TB vs GL Recon
 # # GL LOAD
 
+@ErrRetry
 def DoTBGLRecon(dfGL:pd.DataFrame):
 
     print("TB/GL Recon 기초자료를 추출합니다.")    
@@ -354,20 +368,14 @@ def DoTBGLRecon(dfGL:pd.DataFrame):
 ##################################################################
 # 추출
 
+@ErrRetry
 def ExportDF(dfGL:pd.DataFrame):
 
     if not os.path.exists("./imported"):
         os.makedirs("./imported")        
     # EXPORT    
-    print("dfGL을 생성합니다.")    
-    while True:
-        try:    
-            dfGL.to_csv("./imported/dfGL.tsv", sep="\t", index=None)
-            break
-        except Exception as e:
-            print(e)
-            print("파일이 열려있는것 같습니다.. 파일을 삭제하시고 엔터를 누르세요.")
-            input(">>")
+    print("dfGL을 생성합니다.")         
+    dfGL.to_csv("./imported/dfGL.tsv", sep="\t", index=None) #Converted to decorator
     print("dfGL을 생성 완료합니다.")
     #dfGLPY['전표금액'].sum()
     #dfGLPY.groupby('계정과목코드').sum()

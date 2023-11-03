@@ -32,6 +32,7 @@ def MoveFolder()->str:
 ##################################################################
 
 #2. TB Import :필요한부만 활성화
+@ErrRetry
 def ImportTB() -> pd.DataFrame:
     while True:
         try:
@@ -103,6 +104,7 @@ def autoMap(df:pd.DataFrame, tgtdir:str)->pd.DataFrame :
 ## 4) FSLine 추가
 
 #계정과목 매핑을 읽는다.
+@ErrRetry
 def AddFSLineCode(dfTB:pd.DataFrame, tgtdir:str):
     filenameAcctMap = "acctMAP.xlsx"
     #tgtdir = myfd.askdirectory()

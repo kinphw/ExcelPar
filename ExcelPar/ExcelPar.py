@@ -92,28 +92,30 @@ class ExcelPar:
         from ExcelPar.mod.PostProcess import Postprocess
         Postprocess.Postprocess(LeadFileName)
 
-        print("\n\n###Phase2 : FS Line")
+        if input("FS Line 분석을 추가 실시합니까? 실시하면 Y>>") == 'Y':
 
-        SetGlobal.Level = "FSLine" #Set class var
+            print("\n\n###Phase2 : FS Line")
 
-        print("\n#0. GL과 TB의 계정과목을 FS Line으로 대체합니다.")    
-        from ExcelPar.mod.ChangeTBGL import ChangeTBGL
-        tb = ChangeTBGL.ChangeTBGL(gl,tb) #gl은 object reference로 조작, tb는 반환하여 재설정
+            SetGlobal.Level = "FSLine" #Set class var
 
-        print("\n#3-2. TB를 전처리합니다.")
-        PreprocessTB.PreprocessTB(tb)    
+            print("\n#0. GL과 TB의 계정과목을 FS Line으로 대체합니다.")    
+            from ExcelPar.mod.ChangeTBGL import ChangeTBGL
+            tb = ChangeTBGL.ChangeTBGL(gl,tb) #gl은 object reference로 조작, tb는 반환하여 재설정
 
-        print("\n#4. 계정별 분석을 실시하고 계정별 분석보고서를 생성합니다.")
-        AnalyzeAccounts.AnalyzeAccounts(gl)
+            print("\n#3-2. TB를 전처리합니다.")
+            PreprocessTB.PreprocessTB(tb)    
 
-        print("\n#5. 계정별 월별/누적월별증감액 보고서를 생성합니다.")
-        tb_월별 = SummarizeMonthlyVarAmount.SummarizeMonthlyVarAmount(gl,tb)    
+            print("\n#4. 계정별 분석을 실시하고 계정별 분석보고서를 생성합니다.")
+            AnalyzeAccounts.AnalyzeAccounts(gl)
 
-        print("\n#6. 총괄 분석보고서를 생성합니다.")    
-        LeadFileName = CreateLeadReport.CreateLeadReport(tb, tb_월별)
+            print("\n#5. 계정별 월별/누적월별증감액 보고서를 생성합니다.")
+            tb_월별 = SummarizeMonthlyVarAmount.SummarizeMonthlyVarAmount(gl,tb)    
 
-        print("\n#7. 후처리 후 파일을 정리합니다.")    
-        Postprocess.Postprocess(LeadFileName)
+            print("\n#6. 총괄 분석보고서를 생성합니다.")    
+            LeadFileName = CreateLeadReport.CreateLeadReport(tb, tb_월별)
+
+            print("\n#7. 후처리 후 파일을 정리합니다.")    
+            Postprocess.Postprocess(LeadFileName)
 
         print("###EXCEL PAR END:...")        
 
