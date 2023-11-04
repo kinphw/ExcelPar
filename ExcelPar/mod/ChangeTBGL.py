@@ -7,8 +7,16 @@ class ChangeTBGL:
         
         
         #1. GL [Company Code]를 FS Line으로 변경한다.        
-        gl['Company code'] = gl['FSCode'].fillna(0).astype(float).astype(int).astype(str) + "_" + gl['FSName'].astype(str) #DEBUG 231025
-        gl['계정과목코드'] = gl['FSCode'].fillna(0).astype(float).astype(int).astype(str) #DEBUG 231025
+        try:
+            gl['Company code'] = gl['FSCode'].fillna(0).astype(float).astype(int).astype(str) + "_" + gl['FSName'].astype(str) #DEBUG 231025
+        except Exception as e:
+            print(e)
+            gl['Company code'] = gl['FSCode'].fillna(0).astype(str) + "_" + gl['FSName'].astype(str) #DEBUG 231025
+        try:
+            gl['계정과목코드'] = gl['FSCode'].fillna(0).astype(float).astype(int).astype(str) #DEBUG 231025
+        except Exception as e:
+            print(e)
+            gl['계정과목코드'] = gl['FSCode'].fillna(0).astype(str) #DEBUG 231025
         gl['계정과목명'] = gl['FSName']
 
         #Call by object reference이므로 df조작(gl)은 반영됨
@@ -23,7 +31,11 @@ class ChangeTBGL:
         tbFS["PY"] = np.where(tbFS["BSPL"] == "BS", tbFS["전기말"], tbFS["전년동기말"]) #조건식으로 브로드캐스팅
         tbFS["PY1"] = tbFS["전전기말"]
 
-        tbFS['계정과목코드'] = tbFS['FSCode'].fillna(0).astype(float).astype(int).astype(str)
+        try:
+            tbFS['계정과목코드'] = tbFS['FSCode'].fillna(0).astype(float).astype(int).astype(str)
+        except Exception as e:
+            print(e)
+            tbFS['계정과목코드'] = tbFS['FSCode'].fillna(0).astype(str)
         tbFS['계정과목명'] = tbFS['FSName']
         tbFS["Company code"] = tbFS["계정과목코드"].apply(str) + "_" + tbFS["계정과목명"].apply(str) # Company Code
 

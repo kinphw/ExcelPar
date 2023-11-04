@@ -4,6 +4,7 @@
 # v 0.0.1 DD 231024
 # v 0.0.2 DD 231024 GL 엑셀 순환인식부 추가
 # v 0.0.3 DD 231024 코드로 구현
+# v 0.0.4 DD 231104 USE PARQUET. import and export
 ##################################################################
 
 #전역부
@@ -14,8 +15,16 @@ import os
 import numpy as np
 import openpyxl
 
-from ExcelPar.mylib import myFileDialog as myfd
-from ExcelPar.mylib.ErrRetry import ErrRetry
+try:
+    from ExcelPar.mylib import myFileDialog as myfd
+except Exception as e:
+    print(e)
+    from mylib import myFileDialog as myfd    
+try:
+    from ExcelPar.mylib.ErrRetry import ErrRetry
+except Exception as e:
+    print(e)    
+    from mylib.ErrRetry import ErrRetry
 
 #################################################################
 
@@ -26,6 +35,7 @@ class Const:
     TO회계월FR전기일자yyyy_mm = 0b1 << 3
     TO회계월FR전기일자yyyymm = 0b1 << 4 #yyyymmdd도 사용
     TO회계월FR전기일자yyyy_mm_ddDOT = 0b1 << 6 #2023.01.01    
+    TO회계월FR전기일자yyyymmdd = 0b1 << 12 #2023.11.04
 
     TO대변금액FR대변금액MINUS = 0b1 << 5    
     TO차대금액FR전표금액 = 0b1 << 7
@@ -60,95 +70,84 @@ def MoveFolder()->str:
 
 ##################################################################
 
-@ErrRetry
-def TempDF(Flag:bool=True, df:pd.DataFrame = None) -> pd.DataFrame: #True면 저장, False면 불러오기
+class TempDF:   
 
-    #임시저장하는 파일
-    #Filename = "temp.pickle"
-    print("load한 dataframe의 임시저장 여부를 확인합니다.")
-
-    if Flag:
-        if not input("임시저장한다면 Y>>") == "Y":
-            print("임시저장하지 않습니다")
-            return            
+    #@ErrRetry
+    @classmethod
+    def SaveTempDF(cls, df:pd.DataFrame = None) -> pd.DataFrame: #True면 저장, False면 불러오기
         Filename = input("임시저장합니다. 저장할파일명 입력하세요>")
         df.to_pickle(Filename)
-        print("임시저장완료.",Filename)
-        
-    else:
-        if not input("임시로드한다면 Y>>") == "Y":
-            print("임시로드하지 않습니다")
-            return            
+        print("임시저장완료.",Filename)                   
+        return df
+
+    #@ErrRetry
+    @classmethod    
+    def LoadTempDF(cls, Flag:bool=True) -> pd.DataFrame: #True면 저장, False면 불러오기                
         Filename = input("임시저장 파일을 로드합니다. 로드할파일명>")
         df = pd.read_pickle(Filename)        
         print("임시파일 로드완료")
-    return df
+        return df
+
+class ImportGL:
+
+    #상수 선언
+    FLAG_EXCEL_SINGLE = '0'
+    FLAG_EXCEL_MULTI = '1'
+    FLAG_TSV = '2'
+    FLAG_PARQUET = '3'
+    FLAG_PICKLE = '4'
+
+    #@ErrRetry
+    @classmethod
+    def ImportGLWraper(cls) -> pd.DataFrame:
+        message = """
+        단일시트 엑셀 : 0
+        복수시트 엑셀 : 1
+        TSV : 2
+        PARUQET : 3
+        PICKLE(TMP) : 4
+        """
+        #1-1. 읽는다.
+        print(message)       
         
+        Flag = input(">>")
+        df = cls.ImportGL(Flag)           
+        return df    
 
-@ErrRetry
-def ImportGL(bExcel:bool=True, bMultisheet:bool=False)->pd.DataFrame:
-    
-    filename = myfd.askopenfilename("Select GL")
-    
-    ## STE1. CY
-    #필요한 부분 활성화
-    #df = pd.read_csv(myfd.askopenfilename(),sep="\t")#, sheet_name="GL")
-    # IF EXCEL    
-    #df = pd.read_excel(myfd.askopenfilename(), sheet_name='GL(23)')
-    
-    #파일을 읽어서 시트 수를 찾아낸다
-
-    if not bExcel: #엑셀이 아닌 경우
-        print("tsv를 읽습니다.")
-        df = pd.read_csv(filename, sep="\t")
-    
-    else: #엑셀인 경우
-
-        if bMultisheet: #복수시트인 경우
-            print("복수 시트를 읽습니다.)")
-            wb = openpyxl.load_workbook(filename, read_only=True) #read_only for speed
-            print(filename)
-            sheetCount = len(wb.sheetnames)
-            print("시트수:",sheetCount)
-            df = pd.DataFrame()
-
-            for i in range(sheetCount):
-                dfTmp = pd.read_excel(filename,sheet_name=i) #Should be i
-                df = pd.concat([df, dfTmp])
-                print(i,"번째 시트를 합쳤습니다.")
-        else:
-            print("단일 파일을 추출합니다.")
-            df = pd.read_excel(filename)
-
-    TempDF(True, df)
-
-    print("데이터프레임을 반환합니다.")
-    return df
-
-
-@ErrRetry
-def ImportGLWraper() -> pd.DataFrame:
-    #1. 읽을것인지, 백업파일을 불러올 것인지        
-
-    #1-1. 읽는다.
-    if input("GL을 Import합니까? Y,(or Load Temp)>") == 'Y':        
+    @classmethod
+    #@ErrRetry
+    def ImportGL(cls, Flag:str)->pd.DataFrame:
         
-        bExcel = input("엑셀이면 Y>") == 'Y'
-        if bExcel:            
-            bMultisheet = input("엑셀이 복수 시트면 Y>") == 'Y'            
-            df = ImportGL(bExcel, bMultisheet)                
-        
-        else:   #엑셀이 아닌 TSV
-            print("tsv를 상정합니다.")
-            df = ImportGL(bExcel)
-            pass
-    
-    #1-2. 백업을 불러온다.
-    else:                
-        df = TempDF(False) #불러온 결과가 df
-        
+        filename = myfd.askopenfilename("Select GL File")
 
-    return df    
+        match Flag:
+            case cls.FLAG_EXCEL_SINGLE:
+                print("Read Excel with single sheet")
+                df = pd.read_excel(filename)
+            case cls.FLAG_EXCEL_MULTI:
+                print("Read Excel with multi sheet")
+                print("복수 시트를 읽습니다.)")
+                wb = openpyxl.load_workbook(filename, read_only=True) #read_only for speed
+                print(filename)
+                sheetCount = len(wb.sheetnames)
+                print("시트수:",sheetCount)
+                df = pd.DataFrame()
+                for i in range(sheetCount):
+                    dfTmp = pd.read_excel(filename,sheet_name=i) #Should be i
+                    df = pd.concat([df, dfTmp])
+                    print(i,"번째 시트를 합쳤습니다.")
+            case cls.FLAG_TSV:
+                print("tsv를 읽습니다.")
+                df = pd.read_csv(filename, sep="\t")
+            case cls.FLAG_PARQUET:
+                print("Read Parquet")
+                df = pd.read_parquet(filename)        
+            case cls.FLAG_PICKLE:
+                print("read TEMP file")        
+                df = TempDF.LoadTempDF()
+
+        print("데이터프레임을 반환합니다.")
+        return df
 
 @ErrRetry
 def AutoMap(df:pd.DataFrame, tgtdir:str)-> pd.DataFrame:
@@ -204,7 +203,6 @@ def ReadFlag(tgtdir:str)->bin:
 ## 중요
 ##########################################################################
 
-
 @ErrRetry
 def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:    
     # 수기처리 => 회사에 따라 적절히 변형하여 적용한다.    
@@ -229,21 +227,31 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
     if Const.TO연도CYPY & Flag:        
         dfGL['연도'] = str(year)
         print("연도를 ",str(year),"로 조정")
-    
-    if Const.TO회계월FR전기일자yyyy_mm_dd & Flag:
-        dfGL["회계월"] = dfGL["전기일자"].astype('str').apply(lambda x: x[5:7])  #2023-01-01        
-        print("회계월 from 전기일자 yyyy-mm-dd")
-    if Const.TO회계월FR전기일자yyyy_mm & Flag:
-        dfGL["회계월"] = dfGL['전기일자'].apply(lambda x: x[5:]).astype('int') #2023-06
-        print("회계월 from 전기일자 yyyy-mm")
-    if Const.TO회계월FR전기일자yyyymm & Flag:
-        dfGL["회계월"] = dfGL["전기일자"].astype('int64').astype('str').apply(lambda x: x[4:6]).astype('int64') # 회계월 가공 :202306
-        print("회계월 from 전기일자 yyyymm")        
-    if Const.TO회계월FR전기일자yyyy_mm_ddDOT & Flag:        
-        dfGL['전기일자'] = dfGL['전기일자'].apply(lambda x:x.replace(".","-")) #먼저 .을 -로 바꾼다.
-        dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
-        print("회계월 from 전기일자 yyyy.mm.dd")
 
+    #Improve : 전처리 단계에서 아예 일자를 yyyy-mm-dd로 조정하고, 회계월까지 생성함
+    dateFormat = input("날짜형식 입력하세요(예시. %Y-%m-%d or %Y%m%d 등..)>>")
+    dfGL['전기일자'] = pd.to_datetime(dfGL['전기일자'],format=dateFormat) #전기일자부터 %Y-%m-%d로 세팅
+    dfGL['회계월'] = dfGL['전기일자'].apply(lambda x:x.month)
+    
+    if 1 == 0:
+        if Const.TO회계월FR전기일자yyyy_mm_dd & Flag:
+            dfGL["회계월"] = dfGL["전기일자"].astype('str').apply(lambda x: x[5:7])  #2023-01-01        
+            print("회계월 from 전기일자 yyyy-mm-dd")
+        if Const.TO회계월FR전기일자yyyy_mm & Flag:
+            dfGL["회계월"] = dfGL['전기일자'].apply(lambda x: x[5:]).astype('int') #2023-06
+            print("회계월 from 전기일자 yyyy-mm")
+        if Const.TO회계월FR전기일자yyyymm & Flag:
+            dfGL["회계월"] = dfGL["전기일자"].astype('int64').astype('str').apply(lambda x: x[4:6]).astype('int64') # 회계월 가공 :202306
+            print("회계월 from 전기일자 yyyymm")        
+        if Const.TO회계월FR전기일자yyyy_mm_ddDOT & Flag:        
+            dfGL['전기일자'] = dfGL['전기일자'].apply(lambda x:x.replace(".","-")) #먼저 .을 -로 바꾼다.
+            dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
+            print("회계월 from 전기일자 yyyy.mm.dd")
+        if Const.TO회계월FR전기일자yyyymmdd & Flag:  #20230101       
+            dfGL['전기일자'] = dfGL['전기일자'].apply(lambda x:x.replace(".","-")) #먼저 .을 -로 바꾼다.
+            dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
+            print("회계월 from 전기일자 yyyy.mm.dd")    
+    
     #dfGL['전기일자'] = dfGL['전기일자'].astype(int).astype('str')
 
     if Const.TO대변금액FR대변금액MINUS & Flag:
@@ -358,7 +366,8 @@ def DoTBGLRecon(dfGL:pd.DataFrame):
     print("검증_GL.xlsx 추출완료\n")
 
     # TB LOAD from imported
-    tbFile = myfd.askopenfilename("SELECT dfTB") #PHW
+    #tbFile = myfd.askopenfilename("SELECT dfTB") #PHW
+    tbFile = './imported/dfTB.tsv'
     pd.read_csv(tbFile, encoding="utf-8-sig", sep="\t").to_excel("검증_TB.xlsx")
     print("검증_TB.xlsx 추출완료\n")
 
@@ -368,14 +377,26 @@ def DoTBGLRecon(dfGL:pd.DataFrame):
 ##################################################################
 # 추출
 
+def Object2String(df:pd.DataFrame) -> None:
+    #df를 받아서, object인 columns을 모두 string으로 변경해줌
+    for column in df.columns:    
+         if df[column].dtype == 'object':
+              df[column] = df[column].astype(str) # Call by Object Refenece이므로 Return 불필요
+
+
 @ErrRetry
 def ExportDF(dfGL:pd.DataFrame):
 
     if not os.path.exists("./imported"):
         os.makedirs("./imported")        
-    # EXPORT    
-    print("dfGL을 생성합니다.")         
-    dfGL.to_csv("./imported/dfGL.tsv", sep="\t", index=None) #Converted to decorator
+    # EXPORT
+    print("dfGL을 생성합니다.")
+    if input("Export to Parquet? (만약 Err시 tsv로) >>") == 'Y':
+        Object2String(dfGL)
+        dfGL.to_parquet("./imported/dfGL.parquet")
+    else:        
+        dfGL.to_csv("./imported/dfGL.tsv", sep="\t", index=None) #Converted to decorator
+    
     print("dfGL을 생성 완료합니다.")
     #dfGLPY['전표금액'].sum()
     #dfGLPY.groupby('계정과목코드').sum()
@@ -394,8 +415,9 @@ class Run:
     def Run(cls):
         print("GL Processing START:")
         tgtdir = MoveFolder()
-        print("Import CY")
-        df = ImportGLWraper()
+        print("Import CY")        
+        df = ImportGL.ImportGLWraper()
+        #df = ImportGLWraper()
         dfGL = AutoMap(df, tgtdir)
 
         #Flag = 0b0 #상수. 필요한 경우 조정하여 사용
@@ -408,8 +430,7 @@ class Run:
 
         ## PY : 분리되어 있는 경우에 수행한다.
         if input("PY 추가진행한다면 Y>") == 'Y':
-            #df = ImportGL(True)
-            df = ImportGLWraper() #DEBUG : 231101
+            df = ImportGL.ImportGLWraper()            
             dfGL = AutoMap(df, tgtdir)
             dfGL = UserDefinedProc(dfGL, 'PY', Flag) #Flag는 CY와 동일하다고 봄
             #dfGL = ManualPreprocess(dfGL)
@@ -437,6 +458,7 @@ def RunPreGL():
 
 if __name__=="__main__":
     Run.Run()
+    #Test.test()
 
 # #FOR 비트연산
 # TO연도CYPY = 0b1 << 0

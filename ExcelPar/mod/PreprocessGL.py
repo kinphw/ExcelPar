@@ -7,16 +7,16 @@ class PreprocessGL:
     @classmethod
     def PreprocessGL(cls, gl : pd.DataFrame) -> pd.DataFrame:
         gl['전표번호'] = gl['전표번호'].astype(str) #전표번호 2 String
-        #gl['전기일자'] = pd.to_datetime(gl['전기일자'],format="%Y-%m-%d") #전기일자 2 Datetime
+        gl['전기일자'] = pd.to_datetime(gl['전기일자'],format="%Y-%m-%d") #전기일자 2 Datetime
         
-        ## 개선BEGIN
-        while True:
-            try:        
-                dateFormat = input("날짜형식 입력하세요(예시. %Y-%m-%d or %Y%m%d)>>")
-                gl['전기일자'] = pd.to_datetime(gl['전기일자'],format=dateFormat) #입력을 받게 바꾼다
-                break
-            except:
-                print("날짜형식입력이 잘못되었습니다. 다시 입력하세요.")
+        # ## 개선BEGIN
+        # while True:
+        #     try:        
+        #         #dateFormat = input("날짜형식 입력하세요(예시. %Y-%m-%d or %Y%m%d)>>")
+        #         gl['전기일자'] = pd.to_datetime(gl['전기일자'],format='%Y-%m-%d') #231104 수정, 전처리에서 일치시킴
+        #         break
+        #     except:
+        #         print("날짜형식입력이 잘못되었습니다. 다시 입력하세요.")
 
         ## 개선END
 
