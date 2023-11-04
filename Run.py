@@ -6,9 +6,12 @@ match int(input(">>")):
         #Import TB
         ep.RunPreTB()
     case 2:
+        #Deal with GL From RAW(tsv) To Parquet
+        ep.RunSaveAsGL()
+    case 3:
         #Import GL
         ep.RunPreGL()
-    case 3:
+    case 4:
         #CREATE EP
         ep.RunEP()
     case _:

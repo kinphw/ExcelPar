@@ -3,14 +3,14 @@ class ErrRetry:
     def __init__(self,func):
         self.func = func
     def __call__(self,*arg,**kwarg):
-        # while True:
-        #     try:
-        #         return self.func(*arg, **kwarg)
-        #     except Exception as e:
-        #         print(e)
-        #         input("RETRY>")        
+        while True:
+            try:
+                return self.func(*arg, **kwarg)
+            except Exception as e:
+                print(e)
+                input("RETRY>")        
 
-        return self.func(*arg, **kwarg)
+        # return self.func(*arg, **kwarg) # TO DEBUG
 
 @ErrRetry
 def Test():
