@@ -391,7 +391,7 @@ def ExportDF(dfGL:pd.DataFrame):
         os.makedirs("./imported")        
     # EXPORT
     print("dfGL을 생성합니다.")
-    if input("Export to Parquet? (만약 Err시 tsv로) >>") == 'Y':
+    if input("Export to Parquet? Press Y(만약 Err시 tsv로) >>") == 'Y':
         Object2String(dfGL)
         dfGL.to_parquet("./imported/dfGL.parquet")
     else:        

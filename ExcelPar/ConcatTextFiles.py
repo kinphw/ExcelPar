@@ -8,7 +8,7 @@ import gc
 import openpyxl
 
 ###########################################
-#경로 내 Text파일을 합치는 코드
+#경로 내 Text파일을 합치는 코드 by Pandas
 
 #경로설정 및 리스트 추출
 path = myfd.askdirectory()
