@@ -12,9 +12,8 @@ match input(">>"):
     case '1':
         ep.RunPreTB()
     case '2':
-        ep.RunSaveAsGL()
-    #case '': #읽어서 전처리해서 숫자만 저장. 가장 효율적 코드
-        #ep.CutGL.py 
+        #ep.RunSaveAsGL() #deprecated    
+        ep.RunSliceAndSaveGL()        
     case '3':
         ep.RunPreGL()
     case '4':

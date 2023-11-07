@@ -211,9 +211,28 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
     #공통처리
     dfGL['계정과목코드'].astype(str)
     dfGL['거래처코드'] = dfGL['거래처코드'].fillna("NA")
-    dfGL['전표금액'] = dfGL['전표금액'].fillna(0)
-    dfGL['차변금액'] = dfGL['차변금액'].fillna(0)
-    dfGL['대변금액'] = dfGL['대변금액'].fillna(0)
+    
+    #################################
+    #금액처리. 일단 String을 가정하여 바로 숫자처리하되, Error 발생시(아마 이미 int) 바로 fiilna만 적용
+    try:
+        dfGL['전표금액'] = dfGL['전표금액'].fillna(0).astype('float64').astype('int64')
+    except Exception as e:
+        print(e)
+        dfGL['전표금액'] = dfGL['전표금액'].fillna(0)
+
+    try:
+        dfGL['차변금액'] = dfGL['차변금액'].fillna(0).astype('float64').astype('int64')
+    except Exception as e:
+        print(e)
+        dfGL['차변금액'] = dfGL['차변금액'].fillna(0)
+    
+    try:
+        dfGL['대변금액'] = dfGL['대변금액'].fillna(0).astype('float64').astype('int64')
+    except Exception as e:
+        print(e)
+        dfGL['대변금액'] = dfGL['대변금액'].fillna(0)
+    
+    #################################
     dfGL["Company code"] = dfGL["계정과목코드"].apply(str) + "_" + dfGL["계정과목명"].apply(str) # Company Code # Additional에서 옮겨옴
     # TO연도CYPY = 0b1 << 0
     # TO회계월FR전기일자yyyy_mm_dd = 0b1 << 2
@@ -413,14 +432,14 @@ def ManualPreprocess(dfGL:pd.DataFrame) -> pd.DataFrame:
 class Run:    
     @classmethod
     def Run(cls):
+
         print("GL Processing START:")
         tgtdir = MoveFolder()
+
         print("Import CY")        
         df = ImportGL.ImportGLWraper()
         #df = ImportGLWraper()
-        dfGL = AutoMap(df, tgtdir)
-
-        #Flag = 0b0 #상수. 필요한 경우 조정하여 사용
+        dfGL = AutoMap(df, tgtdir)        
         Flag = ReadFlag(tgtdir)
         dfGL = UserDefinedProc(dfGL, 'CY', Flag)
         #dfGL = ManualPreprocess(dfGL)
