@@ -15,7 +15,6 @@ import os
 #0. 편의를 위한 폴더 이동
 tgtdir = myfd.askdirectory()
 os.chdir(tgtdir)
-
 ##################################################################
 # 1. read BKPF
 

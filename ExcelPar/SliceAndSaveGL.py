@@ -12,6 +12,7 @@ import dask.dataframe as dd
 import dask
 import time
 from dask.diagnostics import ProgressBar
+from ExcelPar.mylib import myFileDialog as myfd
 
 class gc():
       path = ""
@@ -21,19 +22,22 @@ class gc():
 
 def SetGlobal():
        #gc.path = Win2TPy(input("배치돌릴 폴더명>>"))
-       gc.path = Win2TPy(r"C:\Users\hyungwopark\OneDrive - Deloitte (O365D)\엑셀파_FY2023\10 Engagement별\231024_강원랜드\02_Export2Text\2022")
+       #gc.path = Win2TPy(r"C:\Users\hyungwopark\OneDrive - Deloitte (O365D)\엑셀파_FY2023\10 Engagement별\231026_금호석유화학\00 PBC\금호석유화학_2023 원장 가공")
+       gc.path = myfd.askopenfilename() #동적으로 설정
 
        #gc.fileTgt = input("배치돌릴 파일. ex. *.txt>>")
-       gc.fileTgt = '*.tsv'
+       #gc.fileTgt = '2023 통합 총계정원장_v2.tsv'
+       gc.fileTgt = myfd.askopenfilename()
 
-       #gc.fileName = input("저장할 파일명>>")
-       gc.fileName = 'rawGLPY.parquet'
+       gc.fileName = input("저장할 파일명>>")
+       #gc.fileName = 'rawGLPY.parquet'
 
-       gc.tgtColumns = ['회계일자','전표번호','계정코드','계정','적요','차변','대변','거래처명'] #HARDCODING
+       gc.tgtColumns = ['전표번호','전기일자','차변(S)/대변(H)','현지통화금액','계정','계정명','고객명'] #HARDCODING
 
 def Import() -> dd.DataFrame:      
        #Import with dd
-       df = dd.read_csv(gc.path+"/"+gc.fileTgt, sep='\t', encoding='cp949',dtype='str')
+       #df = dd.read_csv(gc.path+"/"+gc.fileTgt, sep='\t', encoding='utf-8',dtype='str')
+       df = dd.read_csv(gc.fileTgt, sep='\t', encoding='utf-8',dtype='str')
        return df
 
 def Win2TPy(pathOld:str) -> str:
@@ -68,7 +72,7 @@ def Object2String(df:pd.DataFrame) -> None:
 # SAP 전표금액 가공함수. 필요시 사용
 class ForSAP:
       
-       def InvertMinus(this, tgt:str) -> str:
+       def InvertMinus(self, tgt:str) -> str:
               if len(tgt) <= 1 : return tgt #1글자거나(-) 1글자보다 적으면('') 그냥 바로 반환
               if tgt[-1] == '-':
                      tgt = tgt.replace('-','')
@@ -76,7 +80,7 @@ class ForSAP:
                      return tgt
               return tgt
 
-       def ColumnStrToInt(this, df:pd.DataFrame, ColumnName:str) -> None:    
+       def ColumnStrToInt(self, df:pd.DataFrame, ColumnName:str) -> None:    
 
 #숫자 뒤에 -를 붙여서 음수가 추출된 경우 앞으로 붙여주는 함수
               try:
@@ -94,18 +98,18 @@ class ForSAP:
                             case '1':
                                    tmp = tmp.replace( '[,)]','', regex=True).replace('[(]','-',regex=True) #()를 마이너스로 바꿔주는 함수        
                             case '2':
-                                   tmp = tmp.apply(this.InvertMinus)
+                                   tmp = tmp.apply(self.InvertMinus)
                             case _:
                                    print("선택하지 않았습니다.")                
 
-                     tmp = pd.to_numeric(tmp)
+                     tmp = pd.to_numeric(tmp, errors='coerce') #에러는 0으로..
                      df[ColumnName] = tmp
 
               except Exception as e:
                      print(e)        
 
        ## 전표금액 가공부2. SAP은 100을 곱해줘야 한다.
-       def Multiple100():
+       def Multiple100(self):
               df['현지통화금액'] = df['현지통화금액'] * 100
 
 ########################################################################################################################################################################
@@ -113,13 +117,9 @@ class ForSAP:
 def RunSliceAndSaveGL():
        SetGlobal() #변수설정
        df = Import()
+       df = TrimHeader(df) #DEBUG
        Export(df)
 
 if __name__=="__main__":
        RunSliceAndSaveGL()
     
-
-
-
-
-

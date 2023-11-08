@@ -10,7 +10,7 @@ class ErrRetry:
                 print(e)
                 input("RETRY>")        
 
-        # return self.func(*arg, **kwarg) # TO DEBUG
+        #return self.func(*arg, **kwarg) # TO DEBUG
 
 @ErrRetry
 def Test():

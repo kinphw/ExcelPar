@@ -33,7 +33,7 @@ def CircleSheets(filename:str, sheetCount:int) -> pd.DataFrame:
 
 
 def CircleFiles():
-    path = myfd.askdirectory()
+    path = myfd.askdirectory() #동적으로 폴더 설정
     list = glob.glob(path + "/" + "*.xls*")
 
     print(len(list))
@@ -65,14 +65,15 @@ def CircleFiles():
     return dfCon
     #dfCon.to_pickle("JEJU2023.pickle")
 
-df = CircleFiles()
+def RunConcatExcelFiles():    
+    df = CircleFiles()
+    fileName = input("저장할 파일명(Pickle)>>")
+    df.to_pickle(fileName)
+    print("DONE")
+
+if __name__=='__main__':
+    RunConcatExcelFiles()
 
 #####################################
-
-#임시저장 : 일단 RAW를 저장해놔야 처리하기가 용이함
-df.to_pickle("2023RAW.pickle") #전혀 미가공
-
-#임시파일 LOAD
-dfCon = pd.read_pickle(myfd.askopenfilename())
 
 

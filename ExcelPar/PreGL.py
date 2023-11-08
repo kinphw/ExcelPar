@@ -347,7 +347,11 @@ def AddFSLineCode(dfGL:pd.DataFrame, tgtdir:str)->pd.DataFrame:
 
     dfAcc["DetailCode"] = dfAcc["DetailCode"].astype('str')
     #dfGL["계정과목코드"] = dfGL["계정과목코드"].astype(str)
-    dfGL["계정과목코드"] = dfGL["계정과목코드"].fillna(0).astype('float64').astype('int64').astype('str') #DEBUG 231105 0150
+    try:
+        dfGL["계정과목코드"] = dfGL["계정과목코드"].fillna(0).astype('float64').astype('int64').astype('str') #DEBUG 231105 0150
+    except Exception as e:
+        print(e)        
+        dfGL["계정과목코드"] = dfGL["계정과목코드"].fillna(0).astype('str')
 
     dfGLJoin = dfGL.merge(dfAcc,how='left',left_on='계정과목코드',right_on='DetailCode')
 
