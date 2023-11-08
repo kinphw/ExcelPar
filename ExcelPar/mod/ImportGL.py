@@ -8,7 +8,8 @@ class ImportGL:
     @classmethod
     @ErrRetry
     def ImportGL(cls):
-        glFile = myfd.askopenfilename() #PHW
+        glFile = myfd.askopenfilename("Select GL") #PHW
+        #glFile = './imported/dfGL.parquet'
 
         ext = os.path.splitext(glFile)
         match ext[1]:

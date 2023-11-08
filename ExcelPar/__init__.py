@@ -7,5 +7,5 @@ from ExcelPar.ExcelPar import RunEP
 from ExcelPar.Run import run #Entry Point
 
 #HOW TO USE
-print("import ExcelPar as ep")
-print("ep.run()")
+#print("import ExcelPar as ep")
+#print("ep.run()")

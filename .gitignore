@@ -14,8 +14,6 @@ __pycache__/
 #pypi
 dist/*
 
-
-
 #Add
 test.py
 test.ipynb

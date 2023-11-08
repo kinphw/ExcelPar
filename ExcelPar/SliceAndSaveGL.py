@@ -7,12 +7,18 @@
 ########################################################
 
 # 전역부
+import os
+
 import pandas as pd
 import dask.dataframe as dd
 import dask
 import time
 from dask.diagnostics import ProgressBar
-from ExcelPar.mylib import myFileDialog as myfd
+try:
+       from ExcelPar.mylib import myFileDialog as myfd
+except Exception as e:
+       print(e)
+       from mylib import myFileDialog as myfd
 
 class gc():
       path = ""
@@ -21,18 +27,21 @@ class gc():
       tgtColumns = [] #타겟 컬럼명
 
 def SetGlobal():
+       
+       path = myfd.askopenfilename()
+       
        #gc.path = Win2TPy(input("배치돌릴 폴더명>>"))
        #gc.path = Win2TPy(r"C:\Users\hyungwopark\OneDrive - Deloitte (O365D)\엑셀파_FY2023\10 Engagement별\231026_금호석유화학\00 PBC\금호석유화학_2023 원장 가공")
-       gc.path = myfd.askopenfilename() #동적으로 설정
+       gc.path = os.path.dirname(path)
 
        #gc.fileTgt = input("배치돌릴 파일. ex. *.txt>>")
        #gc.fileTgt = '2023 통합 총계정원장_v2.tsv'
-       gc.fileTgt = myfd.askopenfilename()
+       gc.fileTgt = path
 
        gc.fileName = input("저장할 파일명>>")
        #gc.fileName = 'rawGLPY.parquet'
 
-       gc.tgtColumns = ['전표번호','전기일자','차변(S)/대변(H)','현지통화금액','계정','계정명','고객명'] #HARDCODING
+       gc.tgtColumns = ['전표번호','전기일자','차변(S)/대변(H)','현지통화금액','계정','계정명','고객명','항목텍스트'] #HARDCODING
 
 def Import() -> dd.DataFrame:      
        #Import with dd

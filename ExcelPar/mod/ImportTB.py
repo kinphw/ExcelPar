@@ -5,6 +5,7 @@ from ExcelPar.mylib import myFileDialog as myfd
 class ImportTB:
     @classmethod
     def ImportTB(cls) -> pd.DataFrame:        
-        tb = pd.read_csv(myfd.askopenfilename(), encoding="utf-8-sig", sep="\t")
+        fileName = myfd.askopenfilename("Select TB")
+        tb = pd.read_csv(fileName, encoding="utf-8-sig", sep="\t")
         print("DONE")
         return tb

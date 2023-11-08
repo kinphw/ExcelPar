@@ -31,6 +31,7 @@ read README.md
                 ep.RunEP()
             case _:
                 print("END")
+                break
 
 if __name__=='__main__':
     run()
