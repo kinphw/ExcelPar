@@ -1,13 +1,16 @@
 ########################################################
 # py 파일이 있는 폴더 안의 모든 txt를 읽어서,
-# 특정 컬럼을 추출해서 일단 Dataframe으로 읽고,
+# 특정 컬럼을 추출해서 일단 Dataframe으로 읽고, 
 # and Save as Parquet
-# v0.0.2 DD 231107
+# v0.0.3 DD 231109
 # SaveAsGL is outdated.
+# v0.0.3 DD 231109 : #Slicing은 선택적으로 구현한다.
 ########################################################
 
 # 전역부
 import os
+import glob
+import csv
 
 import pandas as pd
 import dask.dataframe as dd
@@ -22,45 +25,87 @@ except Exception as e:
 
 class gc():
       path = ""
-      fileTgt = ""
-      fileName = ""     
-      tgtColumns = [] #타겟 컬럼명
+      rootPath = ""
+      ext = ""
+      fileTgt = "" #경로+확장자
+      #fileName = ""  #저장할 파일명     
+      tgtColumns = [] 
+      bSlicing = True #Init = True
+      sep = ""
+      encoding = ""
 
 def SetGlobal():
+
+       print("변수 지정:")
+       gc.rootPath = Win2TPy(os.getcwd()) #원래위치 지정              
+       gc.path = myfd.askdirectory("추출할 파일들이 있는 폴더를 지정하세요")       
+       #gc.path = os.path.dirname(path)
+
+       gc.ext = input("배치돌릴 파일. ex. *.txt>>")
+       gc.fileTgt = gc.path + "/" + gc.ext     
        
-       path = myfd.askopenfilename()
-       
-       #gc.path = Win2TPy(input("배치돌릴 폴더명>>"))
-       #gc.path = Win2TPy(r"C:\Users\hyungwopark\OneDrive - Deloitte (O365D)\엑셀파_FY2023\10 Engagement별\231026_금호석유화학\00 PBC\금호석유화학_2023 원장 가공")
-       gc.path = os.path.dirname(path)
+       gc.sep = input("Seperator(기본값: 탭)>>") or '\t'
 
-       #gc.fileTgt = input("배치돌릴 파일. ex. *.txt>>")
-       #gc.fileTgt = '2023 통합 총계정원장_v2.tsv'
-       gc.fileTgt = path
-
-       gc.fileName = input("저장할 파일명>>")
-       #gc.fileName = 'rawGLPY.parquet'
-
-       gc.tgtColumns = ['전표번호','전기일자','차변(S)/대변(H)','현지통화금액','계정','계정명','고객명','항목텍스트'] #HARDCODING
+       #gc.tgtColumns = ['전표번호','전기일자','차변(S)/대변(H)','현지통화금액','계정','계정명','고객명','항목텍스트'] #HARDCODING
+       if (input("Slicing?") == 'Y'):
+              gc.tgtColumns = pd.read_excel(gc.rootPath+"/dtype.xlsx",sheet_name='column', header=None)[0].to_list()
+              gc.bSlicing = True
+       else:
+              gc.tgtColumns = []
+              gc.bSlicing = False
 
 def Import() -> dd.DataFrame:      
        #Import with dd
        #df = dd.read_csv(gc.path+"/"+gc.fileTgt, sep='\t', encoding='utf-8',dtype='str')
-       df = dd.read_csv(gc.fileTgt, sep='\t', encoding='utf-8',dtype='str')
-       return df
+       gc.encoding = input("인코딩(기본값 : cp949)>>") or 'cp949'
+
+       flag = input("USE DASK? (or pandas.) >>") or 'Y'
+       match flag:
+              case 'Y': #DASK
+                     df = dd.read_csv(gc.fileTgt, sep=gc.sep, encoding=gc.encoding,dtype='str')
+                     dfComputed = Compute(df)
+                     return dfComputed
+              case _: #PANDAS
+                     dfCon = ImportFilesByPandas()
+                     return dfCon       
 
 def Win2TPy(pathOld:str) -> str:
        return pathOld.replace("\\", "/")      
 
-def Export(df : dd.DataFrame):
+########################
+# READ부
+
+## DD로 일괄 읽는 메서드
+def Compute(df : dd.DataFrame) -> pd.DataFrame:
        pbar = ProgressBar()
        pbar.register()
 
        print("begin computing")
-       dfComputed = df[gc.tgtColumns].compute()
+
+       if gc.bSlicing: #TRUE면
+              dfComputed = df[gc.tgtColumns].compute() # 컬럼 슬라이싱
+       else:
+              dfComputed = df.compute() # Not slicing
+       
        print("success. begin exporting")
-       dfComputed.to_parquet(gc.fileName)
-       print("Done. Check the exported file:" + gc.fileName)
+
+       return dfComputed
+
+def ImportFilesByPandas(): #bSlicing 사용
+       fileList = glob.glob(gc.fileTgt)       
+       dfCon = pd.DataFrame()
+       for i in fileList:
+              print(i)
+              dfCon = pd.concat([dfCon,pd.read_csv(i, sep=gc.sep, dtype='str', engine='python', quoting=csv.QUOTE_NONE, encoding=gc.encoding)])
+       if gc.bSlicing:
+              return dfCon[gc.tgtColumns]
+       else:
+              return dfCon
+
+def Export(dfComputed : pd.DataFrame):             
+       fileName = input("저장할 파일명>>")
+       dfComputed.to_parquet(fileName)
+       print("Done. Check the exported file:" + fileName)       
 
 def TrimHeader(df : dd.DataFrame) -> dd.DataFrame:
        headerOld = df.columns

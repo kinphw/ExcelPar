@@ -13,13 +13,16 @@ import time
 
 class gc:
     path = ""
-    ext = "*.tsv"
+    ext = ""
+    encoding = ""
 
 def SetGlobal():
 #경로설정 및 리스트 추출
     print("폴더를 선택합니다.")
     gc.path = myfd.askdirectory()
+    gc.ext = input("확장자를 선택하세요. *.tsv 등 >>") or '*.tsv'
     gc.list = glob.glob(gc.path + "/" + gc.ext)
+    gc.encoding = input("인코딩을 선택하세요. cp949 등>>") or 'cp949'
 
     #리스트갯수 : 검증
     #len(list)

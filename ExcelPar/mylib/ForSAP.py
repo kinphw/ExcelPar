@@ -1,5 +1,7 @@
+#############################
+# ForSAP : SAP 추출 data를 위해 별도로 생성한 Class 
 # 별도 Class로 분리
-
+#############################
 import pandas as pd
 
 class ForSAP:
