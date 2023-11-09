@@ -1,37 +1,46 @@
+# 롯데하이마트
+########################################################################################################################
+
+from ExcelPar.mylib import myFileDialog as myfd
 import pandas as pd
+from ExcelPar.mylib.ForSAP import ForSAP
+from ExcelPar.ConcatTextFiles import Object2String
 import numpy as np
 
-# 금호석유화학
-########################################################################################################################
+path = myfd.askopenfilename()
+df = pd.read_csv(path,sep='\t', chunksize=1000000, encoding='cp949')
+dfCon = pd.DataFrame()
+li = ['전표번호','전기일자','전표적요','차대변구분자','전표금액','계정과목코드']
+for cnt, chunk in enumerate(df):
+     print(cnt,"회")
+     dfCon = pd.concat([dfCon,chunk[li]])
 
-path = r'C:\Users\hyungwopark\OneDrive - Deloitte (O365D)\엑셀파_FY2023\10 Engagement별\231026_금호석유화학\01_PBC가공'
-path = path.replace('\\','/')
-path = path + '/' + 'rawGLPY.parquet'
-dfPYraw = pd.read_parquet(path)
+Object2String(dfCon)
+dfCon.to_parquet("GLCY_tmp.parquet")
 
-path = r'C:\Users\hyungwopark\OneDrive - Deloitte (O365D)\엑셀파_FY2023\10 Engagement별\231026_금호석유화학\01_PBC가공'
-path = path.replace('\\','/')
-path = path + '/' + 'rawGLCY.parquet'
-dfCYraw = pd.read_parquet(path)
+ForSAP.ColumnStrToInt(dfCon, '전표금액')
+ForSAP.Multiple100(dfCon, '전표금액')
+dfCon['전표금액'] = np.where(dfCon['차대변구분자'] == 'D', dfCon['전표금액'], dfCon['전표금액'] * -1)
 
-def Doit(df:pd.DataFrame, fileName:str):    
-    c1 = df.columns[2]
-    c2 = df.columns[3]
+#계정과목코드 클렌징 (00이 섞여있음)
+dfCon['계정과목코드'] = pd.to_numeric(dfCon['계정과목코드'], errors='coerce').fillna(0).astype('float64').astype('int64').astype('str')
+dfCon['계정과목코드'] = dfCon['계정과목코드'].replace(" ","")
 
-    # 일단 숫자로 바꾼다.
-    #dfCYraw[c2].astype('int64')
-    df[c2] = pd.to_numeric(df[c2].replace("[,]","",regex=True))
+dfCon.groupby('계정과목코드')['전표금액'].sum().to_excel("testCY.xlsx")
 
-    # 차대변경
-    
-    df[c2] = np.where(df[c1] == 'S', df[c2], df[c2] * -1)
+dfCon.to_parquet("rawGLPY_F.parquet")
 
-    #df.groupby('계정')['현지통화금액'].sum().to_excel("PY_pivot.xlsx")
+# 재처리
 
-    df.to_parquet(fileName)
+df = pd.read_parquet(path)
 
-Doit(dfPYraw, 'dfPYraw_re.parquet')
-Doit(dfCYraw, 'dfCYraw_re.parquet')
 
-########################################################################################################################
+
+#삭제
+df[df['전기일자'] == 'BLDAT']
+
+df = df.reset_index()
+df = df.drop(df[df['전기일자'] == 'BLDAT'].index)
+
+df.to_parquet("rawGLCY_F_RE.parquet")
 

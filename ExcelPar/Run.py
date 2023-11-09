@@ -11,9 +11,8 @@ read README.md
 3. GL 전처리부 : PreGL.RunPreGL()
 4. Excel Par Main분석부 : ExcelPar.RunEP()
     """
-    print(Text)
-
     while True:
+        print(Text)
         match input("input number>>"):
             case '1':
                 ep.RunPreTB()

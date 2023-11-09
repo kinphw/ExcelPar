@@ -14,6 +14,7 @@ import glob
 import os
 import numpy as np
 import openpyxl
+import gc
 
 try:
     from ExcelPar.mylib import myFileDialog as myfd
@@ -466,6 +467,17 @@ class Run:
         dfGLValidate(dfGL)
 
         dfGLJoin = AddFSLineCode(dfGL,tgtdir)
+
+        # MEMORY
+        del dfGL
+        del dfGLCY
+        del dfGLPY
+        dfGL = pd.DataFrame()
+        dfGLCY = pd.DataFrame()
+        dfGLPY = pd.DataFrame()
+        gc.collect()
+        # MEMORY
+
         dfGL = dfGLJoin
 
         dfGL = AdditionalCleansing(dfGL, Flag) #필요한 경우 추가 정의하여 사용
