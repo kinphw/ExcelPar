@@ -207,7 +207,7 @@ def ReadFlag(tgtdir:str)->bin:
 @ErrRetry
 def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:    
     # 수기처리 => 회사에 따라 적절히 변형하여 적용한다.    
-    dfGL = dfGL
+    #dfGL = dfGL
 
     #공통처리
     dfGL['계정과목코드'].astype(str)
@@ -249,6 +249,7 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
         print("연도를 ",str(year),"로 조정")
 
     #Improve : 전처리 단계에서 아예 일자를 yyyy-mm-dd로 조정하고, 회계월까지 생성함
+    print(dfGL.head()) #참고. 231109
     dateFormat = input("날짜형식 입력하세요(예시. %Y-%m-%d or %Y%m%d 등..)>>")
     dfGL['전기일자'] = pd.to_datetime(dfGL['전기일자'],format=dateFormat) #전기일자부터 %Y-%m-%d로 세팅
     dfGL['회계월'] = dfGL['전기일자'].apply(lambda x:x.month)
