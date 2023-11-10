@@ -21,6 +21,7 @@ from openpyxl.styles import Color, PatternFill, Font, Border
 import pandas as pd
 import numpy as np
 import tqdm
+import dask.dataframe as dd
 
 from ExcelPar.mod.SetGlobal import SetGlobal
 
@@ -33,7 +34,7 @@ class AnalyzeAccounts:
     #Define Class var - to decompose
     account_code:str #현재 순환중인 계정과목코드
 
-    df:pd.DataFrame #Raw Full G/L
+    df:dd.DataFrame #Raw Full G/L => Dask
     df1:pd.DataFrame #Sliced (each account)
     df2:pd.DataFrame #df1 -> Pivot
 
@@ -51,7 +52,7 @@ class AnalyzeAccounts:
     #ENTRY POINT : 선언부
     ########################################################################
     @classmethod
-    def AnalyzeAccounts(cls, gl:pd.DataFrame): #Public
+    def AnalyzeAccounts(cls, gl:dd.DataFrame): #Public
 
         # List of account codes to analyze
         account_codes = SetGlobal.분석계정과목 #Global
@@ -70,7 +71,7 @@ class AnalyzeAccounts:
             cls.pbar.set_description(cls.account_code)        
             cls.pbar.update(1)                    
 
-            cls.df = gl #인수로 GL을 받아서 가공한다.                        
+            cls.df = gl #인수로 GL을 받아서 클래스변수에 넣는다.. 
             cls.df2 = cls.__SetDfSliced()
             cls.__SetCorridor() #범위를 설정한다.
 
@@ -100,7 +101,33 @@ class AnalyzeAccounts:
 
     @classmethod
     def __SetDfSliced(cls) -> pd.DataFrame:
-        cls.df1 = cls.df[cls.df["Company code"] == cls.account_code] #GL 중 대상 계정과목만 추출 => df1
+
+        #df1 설정부 : Slicing
+        if SetGlobal.Level == 'Detail': #ChangeTBGL에서 이쪽으로 돌아옴
+            cls.df1 = cls.df[cls.df["Company code"] == cls.account_code].compute() #GL 중 대상 계정과목만 추출 => df1
+
+        elif SetGlobal.Level == 'FSLine':
+            #1. 일단 Code 기준으로 추출
+            tmp:str = cls.account_code.split("_")[0]
+            cls.df1 = cls.df[cls.df["FSCode"] == tmp].compute() #GL 중 대상 계정과목만 추출 => df1
+            
+            #2. 추출 후에서는 가공
+            try:
+                cls.df1['Company code'] = cls.df1['FSCode'].fillna(0).astype(float).astype(int).astype(str) + "_" + cls.df1['FSName'].astype(str) #DEBUG 231025
+            except Exception as e:
+                print(e)
+                cls.df1['Company code'] = cls.df1['FSCode'].fillna(0).astype(str) + "_" + cls.df1['FSName'].astype(str) #DEBUG 231025
+            try:
+                cls.df1['계정과목코드'] = cls.df1['FSCode'].fillna(0).astype(float).astype(int).astype(str) #DEBUG 231025
+            except Exception as e:
+                print(e)
+                cls.df1['계정과목코드'] = cls.df1['FSCode'].fillna(0).astype(str) #DEBUG 231025
+            cls.df1['계정과목명'] = cls.df1['FSName']            
+        else:
+            print("전역변수 'Level' 설정 오류")        
+        
+        #cls.df1 = cls.df[cls.df["Company code"] == cls.account_code] #GL 중 대상 계정과목만 추출 => df1
+
         d = pd.DataFrame(np.zeros((12, 0))) #[12,0] DF 생성 => d
         d["회계월"] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]  #d는 1~12 월 Series임
         df2 = cls.df1.pivot_table(index=["회계월"], columns='연도', values='전표금액', aggfunc='sum').reset_index() #df1을 (행)회계월/(열)연도로 피벗함

@@ -48,6 +48,10 @@ class ABCPreTB(metaclass=ABCMeta):
     @abstractmethod    
     def AdditionalCleansing(cls): pass #필요한 추가 클렌징 실시
 
+    # @classmethod
+    # @abstractmethod    
+    # def AnalyzeTB(cls): pass #분석목적 생성코드 PreprocessTB에서 가져온다.
+
     @classmethod
     @abstractmethod    
     def ExportDF(cls) : pass #데이터프레임을 Export한다.
@@ -56,12 +60,13 @@ class PreTB(ABCPreTB):
     
     @classmethod
     def Handler(cls):
-        print("TB Processing START:")
+        print("TB Processing START:")        
         tgtdir = cls.MoveFolder()
         df = cls.ImportTB()
         dfTB = cls.autoMap(df, tgtdir)
         dfTB = cls.AddFSLineCode(dfTB,tgtdir)
-        cls.AdditionalCleansing(dfTB) #Call by Obj. Refe이므로 return 불필요)    
+        cls.AdditionalCleansing(dfTB) #Call by Obj. Refe이므로 return 불필요)     
+        #dfTB = cls.AnalyzeTB(dfTB) #중요성 고려한 분석대상 선정 => 기존 Preprocess 코드 집합
         cls.ExportDF(dfTB)
         print("TB Processing END..:")
 
@@ -193,7 +198,7 @@ class PreTB(ABCPreTB):
 
         #return 불필요
         dfTB["CY"] = dfTB["당기말"]
-        dfTB["PY"] = np.where(dfTB["BSPL"] == "BS", dfTB["전기말"], dfTB["전년동기말"]) #조건식으로 브로드캐스팅
+        dfTB["PY"] = np.where(dfTB["BSPL"] == "BS", dfTB["전기말"], dfTB["전년동기말"]) #조건식으로 브로드캐스팅 ## CY/PY 설정_분반기 적용 코드 - 필수
         dfTB["PY1"] = dfTB["전전기말"]
         dfTB["Company code"] = dfTB["계정과목코드"].apply(str) + "_" + dfTB["계정과목명"].apply(str) # Company Code
 
@@ -205,13 +210,6 @@ class PreTB(ABCPreTB):
             print("계정코드 중복이 있음. 진행불가. 확인 필요")
         else:
             print("계정코드 중복없음. PASS")
-
-        # while True:
-        #     tmp = input("추가적인 가공이 필요하면 디버깅하세요. 아니면 0 입력>>")
-        #     if tmp == '0' :
-        #         print("진행시켜..")
-        #         break
-
 
     @classmethod
     def ExportDF(cls,dfTB:pd.DataFrame):

@@ -5,6 +5,7 @@
 # v 0.0.2 DD 231024 GL 엑셀 순환인식부 추가
 # v 0.0.3 DD 231024 코드로 구현
 # v 0.0.4 DD 231104 USE PARQUET. import and export
+# v 0.0.5 DD 231110 CY/PY처리를 input에 따라 받도록 바꾸고, 검증식 생성로직 분리
 ##################################################################
 
 #전역부
@@ -44,7 +45,19 @@ class Const:
 
     TO계정과목명FRDetailName = 0b1 << 11
 
+    #전역변수
+    strCYPY = ''
+
 #변수생성부
+
+def SetGlobal():
+    while True:
+        Const.strCYPY = input("Select Year(CY or PY)>>")
+        if not(Const.strCYPY in ['CY','PY']):
+            print("다시 입력하세요")
+            continue
+        else:
+            break
 
 def MoveFolder()->str:  
     ##################################################################
@@ -211,30 +224,32 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
 
     #공통처리
     dfGL['계정과목코드'].astype(str)
-    dfGL['거래처코드'] = dfGL['거래처코드'].fillna("NA")
+    dfGL['거래처코드'] = dfGL['거래처코드'].fillna("NA")    
+    dfGL['전표번호'] == dfGL['전표번호'].astype('str')
     
     #################################
     #금액처리. 일단 String을 가정하여 바로 숫자처리하되, Error 발생시(아마 이미 int) 바로 fiilna만 적용
     try:
-        dfGL['전표금액'] = dfGL['전표금액'].fillna(0).astype('float64').astype('int64')
+        #dfGL['전표금액'] = dfGL['전표금액'].fillna(0).astype('float64').astype('int64')
+        dfGL['전표금액'] = pd.to_numeric(dfGL['전표금액'].fillna(0),downcast='unsigned',errors='coerce')
     except Exception as e:
         print(e)
         dfGL['전표금액'] = dfGL['전표금액'].fillna(0)
 
     try:
-        dfGL['차변금액'] = dfGL['차변금액'].fillna(0).astype('float64').astype('int64')
+        dfGL['차변금액'] = pd.to_numeric(dfGL['차변금액'].fillna(0),downcast='unsigned',errors='coerce')
     except Exception as e:
         print(e)
         dfGL['차변금액'] = dfGL['차변금액'].fillna(0)
     
     try:
-        dfGL['대변금액'] = dfGL['대변금액'].fillna(0).astype('float64').astype('int64')
+        dfGL['대변금액'] = pd.to_numeric(dfGL['대변금액'].fillna(0),downcast='unsigned',errors='coerce')
     except Exception as e:
         print(e)
         dfGL['대변금액'] = dfGL['대변금액'].fillna(0)
     
     #################################
-    dfGL["Company code"] = dfGL["계정과목코드"].apply(str) + "_" + dfGL["계정과목명"].apply(str) # Company Code # Additional에서 옮겨옴
+    #dfGL["Company code"] = dfGL["계정과목코드"].apply(str) + "_" + dfGL["계정과목명"].apply(str) # Company Code # Additional에서 옮겨옴
     # TO연도CYPY = 0b1 << 0
     # TO회계월FR전기일자yyyy_mm_dd = 0b1 << 2
     # TO회계월FR전기일자yyyy_mm = 0b1 << 3
@@ -251,27 +266,31 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
     #Improve : 전처리 단계에서 아예 일자를 yyyy-mm-dd로 조정하고, 회계월까지 생성함
     print(dfGL.head()) #참고. 231109
     dateFormat = input("날짜형식 입력하세요(예시. %Y-%m-%d or %Y%m%d 등..)>>")
-    dfGL['전기일자'] = pd.to_datetime(dfGL['전기일자'],format=dateFormat) #전기일자부터 %Y-%m-%d로 세팅
+    dfGL['전기일자'] = pd.to_datetime(dfGL['전기일자'],format=dateFormat, errors='coerce') #전기일자부터 %Y-%m-%d로 세팅
+    ### DEBUG : with 'coerce'
+    dateTmp = pd.to_datetime('2022-01-01', format='%Y-%m-%d')
+    dfGL['전기일자'] = dfGL['전기일자'].fillna(dateTmp)
+    ###
     dfGL['회계월'] = dfGL['전기일자'].apply(lambda x:x.month)
     
-    if 1 == 0:
-        if Const.TO회계월FR전기일자yyyy_mm_dd & Flag:
-            dfGL["회계월"] = dfGL["전기일자"].astype('str').apply(lambda x: x[5:7])  #2023-01-01        
-            print("회계월 from 전기일자 yyyy-mm-dd")
-        if Const.TO회계월FR전기일자yyyy_mm & Flag:
-            dfGL["회계월"] = dfGL['전기일자'].apply(lambda x: x[5:]).astype('int') #2023-06
-            print("회계월 from 전기일자 yyyy-mm")
-        if Const.TO회계월FR전기일자yyyymm & Flag:
-            dfGL["회계월"] = dfGL["전기일자"].astype('int64').astype('str').apply(lambda x: x[4:6]).astype('int64') # 회계월 가공 :202306
-            print("회계월 from 전기일자 yyyymm")        
-        if Const.TO회계월FR전기일자yyyy_mm_ddDOT & Flag:        
-            dfGL['전기일자'] = dfGL['전기일자'].apply(lambda x:x.replace(".","-")) #먼저 .을 -로 바꾼다.
-            dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
-            print("회계월 from 전기일자 yyyy.mm.dd")
-        if Const.TO회계월FR전기일자yyyymmdd & Flag:  #20230101       
-            dfGL['전기일자'] = dfGL['전기일자'].apply(lambda x:x.replace(".","-")) #먼저 .을 -로 바꾼다.
-            dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
-            print("회계월 from 전기일자 yyyy.mm.dd")    
+    # if 1 == 0:
+    #     if Const.TO회계월FR전기일자yyyy_mm_dd & Flag:
+    #         dfGL["회계월"] = dfGL["전기일자"].astype('str').apply(lambda x: x[5:7])  #2023-01-01        
+    #         print("회계월 from 전기일자 yyyy-mm-dd")
+    #     if Const.TO회계월FR전기일자yyyy_mm & Flag:
+    #         dfGL["회계월"] = dfGL['전기일자'].apply(lambda x: x[5:]).astype('int') #2023-06
+    #         print("회계월 from 전기일자 yyyy-mm")
+    #     if Const.TO회계월FR전기일자yyyymm & Flag:
+    #         dfGL["회계월"] = dfGL["전기일자"].astype('int64').astype('str').apply(lambda x: x[4:6]).astype('int64') # 회계월 가공 :202306
+    #         print("회계월 from 전기일자 yyyymm")        
+    #     if Const.TO회계월FR전기일자yyyy_mm_ddDOT & Flag:        
+    #         dfGL['전기일자'] = dfGL['전기일자'].apply(lambda x:x.replace(".","-")) #먼저 .을 -로 바꾼다.
+    #         dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
+    #         print("회계월 from 전기일자 yyyy.mm.dd")
+    #     if Const.TO회계월FR전기일자yyyymmdd & Flag:  #20230101       
+    #         dfGL['전기일자'] = dfGL['전기일자'].apply(lambda x:x.replace(".","-")) #먼저 .을 -로 바꾼다.
+    #         dfGL["회계월"] = dfGL["전기일자"].apply(str).apply(lambda x: x[5:7])  #2023-01-01        
+    #         print("회계월 from 전기일자 yyyy.mm.dd")    
     
     #dfGL['전기일자'] = dfGL['전기일자'].astype(int).astype('str')
 
@@ -292,18 +311,6 @@ def UserDefinedProc(dfGL, year:str = 'CY', Flag:bin = 0b0) -> pd.DataFrame:
     return dfGL
     #return dfGL #처리 후 반환. Call by Obj. Ref.이므로 반드시 리턴할 필요는 없으나 수기가공 고려하여
 
-
-#dfGL["전표금액"] = dfGL["차변금액"] - dfGL["대변금액"] # 전표금액 = 차변잔액 - 대변잔액
-# import numpy as np
-# dfGL["연도"] = dfGL["전기일자"].apply(lambda x:x.year)
-# dfGL["연도"] = np.where(dfGL["연도"]==2023,"CY","PY")
-
-#계정과목명 붙여야함
-##########################################################################
-#dfGL.shape[0]
-
-##################################################################
-
 ##################################################################
 
 @ErrRetry
@@ -321,21 +328,6 @@ def dfGLValidate(dfGL:pd.DataFrame):
     print("전체전표의 합계액 (TOBE 0): ", dfGL['전표금액'].sum())
 
 ###################################
-# 계정과목명 붙임
-###################################
-# dfAcct = pd.read_excel(myfd.askopenfilename())#), sheet_name="GL")
-# dfAcct = dfAcct[['before','after_1','after_2']]
-# dfTmp = dfTmp.rename(columns={'before':'계정과목코드'})
-
-# dfGLNew = dfGL.merge(right=dfTmp,how='left',on="계정과목코드")
-# dfGLNew['after_1'].isna().any() ## False여야 함
-# dfGL.shape[0] == dfGLNew.shape[0] # True여야 함
-
-# dfGLNew['계정과목코드'] = dfGLNew['after_1']
-# dfGLNew['계정과목명'] = dfGLNew['after_2']
-
-# dfGL = dfGLNew
-###################################
 ## 4) FSLine 추가
 @ErrRetry
 def AddFSLineCode(dfGL:pd.DataFrame, tgtdir:str)->pd.DataFrame:
@@ -350,7 +342,8 @@ def AddFSLineCode(dfGL:pd.DataFrame, tgtdir:str)->pd.DataFrame:
     dfAcc["DetailCode"] = dfAcc["DetailCode"].astype('str')
     #dfGL["계정과목코드"] = dfGL["계정과목코드"].astype(str)
     try:
-        dfGL["계정과목코드"] = dfGL["계정과목코드"].fillna(0).astype('float64').astype('int64').astype('str') #DEBUG 231105 0150
+        #dfGL["계정과목코드"] = dfGL["계정과목코드"].fillna(0).astype('float64').astype('int64').astype('str') #DEBUG 231105 0150
+        dfGL["계정과목코드"] = pd.to_numeric(dfGL["계정과목코드"].fillna(0), downcast='unsigned', errors='coerce').astype('str') #231110 2300 modify
     except Exception as e:
         print(e)        
         dfGL["계정과목코드"] = dfGL["계정과목코드"].fillna(0).astype('str')
@@ -378,27 +371,32 @@ def AdditionalCleansing(dfGL:pd.DataFrame, Flag:bin) -> pd.DataFrame:
         print("계정과목명 추가함")
     
     print("Case by Case 추가 클렌징 종료.")    
+
+    dfGL["Company code"] = dfGL["계정과목코드"].apply(str) + "_" + dfGL["계정과목명"].apply(str) # 마지막으로 이동
+    print("Company code가 추가되었습니다. 계정과목코드+계정과목명")
+
     return dfGL
 
 # #검증식 : TB vs GL Recon
 # # GL LOAD
 
-@ErrRetry
-def DoTBGLRecon(dfGL:pd.DataFrame):
+# DEPRECATED => 외부로 분리
+# @ErrRetry
+# def DoTBGLRecon(dfGL:pd.DataFrame):
 
-    print("TB/GL Recon 기초자료를 추출합니다.")    
-    dfGL.pivot_table(index=["계정과목코드","계정과목명"],columns="연도",values="전표금액",aggfunc='sum').to_excel("검증_GL.xlsx")
-    print("검증_GL.xlsx 추출완료\n")
+#     print("TB/GL Recon 기초자료를 추출합니다.")    
+#     dfGL.pivot_table(index=["계정과목코드","계정과목명"],columns="연도",values="전표금액",aggfunc='sum').to_excel("검증_GL.xlsx")
+#     print("검증_GL.xlsx 추출완료\n")
 
-    # TB LOAD from imported
-    #tbFile = myfd.askopenfilename("SELECT dfTB") #PHW
-    tbFile = './imported/dfTB.tsv'
-    pd.read_csv(tbFile, encoding="utf-8-sig", sep="\t").to_excel("검증_TB.xlsx")
-    print("검증_TB.xlsx 추출완료\n")
+#     # TB LOAD from imported
+#     #tbFile = myfd.askopenfilename("SELECT dfTB") #PHW
+#     tbFile = './imported/dfTB.tsv'
+#     pd.read_csv(tbFile, encoding="utf-8-sig", sep="\t").to_excel("검증_TB.xlsx")
+#     print("검증_TB.xlsx 추출완료\n")
 
-    print("Recon은 별도로 진행하세요.")
+#     print("Recon은 별도로 진행하세요.")
 
-# -> 이후 별도 엑셀에서 TB GL Recon한다.
+# # -> 이후 별도 엑셀에서 TB GL Recon한다.
 ##################################################################
 # 추출
 
@@ -418,11 +416,13 @@ def ExportDF(dfGL:pd.DataFrame):
     print("dfGL을 생성합니다.")
     if input("Export to Parquet? Press Y(만약 Err시 tsv로) >>") == 'Y':
         Object2String(dfGL)
-        dfGL.to_parquet("./imported/dfGL.parquet")
-    else:        
-        dfGL.to_csv("./imported/dfGL.tsv", sep="\t", index=None) #Converted to decorator
+        fileName = "./imported/dfGL"+Const.strCYPY+".parquet"        
+        dfGL.to_parquet(fileName)
+    else:       
+        fileName =  "./imported/dfGL"+Const.strCYPY+".tsv"
+        dfGL.to_csv(fileName, sep="\t", index=None) #Converted to decorator
     
-    print("dfGL을 생성 완료합니다.")
+    print("dfGL을 생성 완료합니다.",fileName)
     #dfGLPY['전표금액'].sum()
     #dfGLPY.groupby('계정과목코드').sum()
 
@@ -440,53 +440,50 @@ class Run:
     def Run(cls):
 
         print("GL Processing START:")
-        tgtdir = MoveFolder()
-
-        print("Import CY")        
+        tgtdir = MoveFolder()        
+        SetGlobal()
+        print("START:",Const.strCYPY)
         df = ImportGL.ImportGLWraper()
-        #df = ImportGLWraper()
         dfGL = AutoMap(df, tgtdir)        
         Flag = ReadFlag(tgtdir)
-        dfGL = UserDefinedProc(dfGL, 'CY', Flag)
+        dfGL = UserDefinedProc(dfGL, Const.strCYPY, Flag)
         #dfGL = ManualPreprocess(dfGL)
+        #dfGLCY = dfGL
+        print(Const.strCYPY," Done")
 
-        dfGLCY = dfGL
-        print("CY Done")
-
-        ## PY : 분리되어 있는 경우에 수행한다.
-        if input("PY 추가진행한다면 Y>") == 'Y':
-            df = ImportGL.ImportGLWraper()            
-            dfGL = AutoMap(df, tgtdir)
-            dfGL = UserDefinedProc(dfGL, 'PY', Flag) #Flag는 CY와 동일하다고 봄
-            #dfGL = ManualPreprocess(dfGL)
-            dfGLPY = dfGL
-            print("PY Done")
-            dfGL = ConcatCYPY(dfGLCY, dfGLPY)
-        else:
-            dfGL = dfGLCY
+        # ## PY : 분리되어 있는 경우에 수행한다.
+        # if input("PY 추가진행한다면 Y>") == 'Y':
+        #     df = ImportGL.ImportGLWraper()            
+        #     dfGL = AutoMap(df, tgtdir)
+        #     dfGL = UserDefinedProc(dfGL, 'PY', Flag) #Flag는 CY와 동일하다고 봄
+        #     #dfGL = ManualPreprocess(dfGL)
+        #     dfGLPY = dfGL
+        #     print("PY Done")
+        #     dfGL = ConcatCYPY(dfGLCY, dfGLPY)
+        # else:
+        #     dfGL = dfGLCY
         
         dfGLValidate(dfGL)
 
-        dfGLJoin = AddFSLineCode(dfGL,tgtdir)
+        dfGLJoin = AddFSLineCode(dfGL,tgtdir) #문제의 코드. 될지 모르겠음. 터지면 계정과목만 잘라서 붙이거나 수행불가
 
         # MEMORY
         del dfGL
-        del dfGLCY
-        del dfGLPY
+        # del dfGLCY
+        # del dfGLPY
         dfGL = pd.DataFrame()
-        dfGLCY = pd.DataFrame()
-        dfGLPY = pd.DataFrame()
+        # dfGLCY = pd.DataFrame()
+        # dfGLPY = pd.DataFrame()
         gc.collect()
         # MEMORY
+        #dfGL = dfGLJoin
 
-        dfGL = dfGLJoin
-
-        dfGL = AdditionalCleansing(dfGL, Flag) #필요한 경우 추가 정의하여 사용
+        dfGLJoin = AdditionalCleansing(dfGLJoin, Flag) #필요한 경우 추가 정의하여 사용
 
         #최종단계
-        DoTBGLRecon(dfGL)
+        #DoTBGLRecon(dfGL)
 
-        ExportDF(dfGL)
+        ExportDF(dfGLJoin)
         print("GL Processing END..:")
 
 def RunPreGL():
@@ -494,14 +491,4 @@ def RunPreGL():
 
 if __name__=="__main__":
     Run.Run()
-    #Test.test()
 
-# #FOR 비트연산
-# TO연도CYPY = 0b1 << 0
-# TO회계월FR전기일자yyyy_mm_dd = 0b1 << 2
-# TO회계월FR전기일자yyyy_mm = 0b1 << 3
-# TO회계월FR전기일자yyyymm = 0b1 << 4
-# TO대변금액FR대변금액MINUS = 0b1 << 5
-# TO차변금액FR전표금액 = 0b1 << 6
-# TO차대금액FR전표금액 = 0b1 << 7
-# TO전표금액FR차대금액 = 0b1 << 8

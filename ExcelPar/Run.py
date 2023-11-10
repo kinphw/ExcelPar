@@ -9,6 +9,7 @@ read README.md
 2-3. Text를 Slicing해서 합치기 : SliceAndSaveGL.RunSliceAndSaveGL()
 2-4. BKPF+BSEG Join : JoinBKPFBSEG
 3. GL 전처리부 : PreGL.RunPreGL()
+3-2 TB GL Recon : TBGLRecon.RunTBGLRecon()
 4. Excel Par Main분석부 : ExcelPar.RunEP()
     """
     while True:
@@ -26,6 +27,8 @@ read README.md
                 print("아직 메서드로 구현하지 않았습니다.") 
             case '3':
                 ep.RunPreGL()
+            case '3-2':
+                ep.RunTBGLRecon()
             case '4':
                 ep.RunEP()
             case _:

@@ -7,7 +7,7 @@ class SetGlobal:
     
     #Class Var. - First set
     PM = '0'
-    De_minimis = '0'
+    De_minimis = '0' #Analyze에서 사용
     diff_비율 = 0
     ClientNameDate = 0
     Level = 0
@@ -19,7 +19,7 @@ class SetGlobal:
     #Setter
     @classmethod
     def SetGlobal(cls):
-        #PM = 1000000000 # 10억을 기준으로 함
+        PM = 1000000000 # 10억을 기준으로 함
         cls.PM = input("적용할 PM을 입력하세요 > ") or '13,995,000,000'
         try:
             cls.PM = cls.PM.replace(",","")
@@ -40,8 +40,8 @@ class SetGlobal:
         cls.ClientNameDate = input("파일명에 반영할 회사명/기준월을 입력하세요. 파일명에만 영향을 줍니다. (ex. 삼성전자2309)> ") or '금호석유화학2309'
         print(f'입력하신 회사명/기준월은 {cls.ClientNameDate}입니다.')
 
-        cls.diff_비율 = 0.2
-        print(f'기본 차이비율 Threshold는 {cls.diff_비율:.0%}')
+        # cls.diff_비율 = 0.2
+        # print(f'기본 차이비율 Threshold는 {cls.diff_비율:.0%}')
 
         cls.Level = 'Detail' #기본값 : Detail
     #####################################################################

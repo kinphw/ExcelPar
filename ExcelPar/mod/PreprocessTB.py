@@ -60,9 +60,17 @@ class PreprocessTB:
         tb['분석대상'] = np.select(conditions, choices, default="X")
 
         tb_분석대상 = tb[tb["분석대상"] == "O"]
-        SetGlobal.분석계정과목 = tb_분석대상["Company code"].unique()        
+        
+        if SetGlobal.Level == 'Detail':
+            SetGlobal.분석계정과목 = tb_분석대상["Company code"].unique()    #Detail이면 기존 Logic     
+        elif SetGlobal.Level == 'FSLine':
+            tmp1 = pd.to_numeric(tb_분석대상["FSCode"].fillna(0),errors='coerce',downcast='unsigned').astype('str')
+            tmp2 = tb_분석대상["FSName"].fillna(0).astype('str')
+            tb_분석대상["New"] = tmp1+"_"+tmp2
+            SetGlobal.분석계정과목 = tb_분석대상["New"].unique()        #FSLine이면 그냥 계정과목코드로
+        else:
+            pass
 
-        ## 임시파일 생성부
         ## 대분류 증감요인
 
         tb["T1_증감금액"] = tb.groupby(["T1"])["증감금액"].transform("sum")
@@ -72,8 +80,5 @@ class PreprocessTB:
 
         tb["T2_설명비율"] = np.where((tb["증감금액"] == 0) & (tb["T2_증감금액"] == 0), 0,
                             np.where((tb["증감금액"] != 0) & (tb["T2_증감금액"] == 0), 1, tb["증감금액"]/tb["T2_증감금액"]))
-
-        #tb.to_excel("삭제.xlsx")
-        #print("\t임시파일을 생성했습니다.")
-
+        
         return tb

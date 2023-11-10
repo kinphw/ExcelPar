@@ -1,10 +1,13 @@
 import pandas as pd
 import numpy as np
 
+from ExcelPar.mod.SetGlobal import SetGlobal
+
 class ChangeTBGL:
     @classmethod
     def ChangeTBGL(cls, gl:pd.DataFrame, tb:pd.DataFrame) -> pd.DataFrame: #return tb #-> list[pd.DataFrame, pd.DataFrame]: 
         
+        SetGlobal.Level = "FSLine" #Set class var
         
         #1. GL [Company Code]를 FS Line으로 변경한다.        
         try:
@@ -20,7 +23,7 @@ class ChangeTBGL:
         gl['계정과목명'] = gl['FSName']
 
         #Call by object reference이므로 df조작(gl)은 반영됨
-        print("TB와 GL의 KEY가 FS Line으로 변경되었습니다.")        
+        print("TB를 FS Line 기준으로 Reshape합니다.")        
         
         #2. TB를 FS Line 기준으로 재합산한다.    
         tbFS = tb.groupby(['FSCode', 'FSName'])[['당기말','전년동기말','전전기말','전기말']].sum()    
