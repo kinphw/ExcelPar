@@ -1,34 +1,27 @@
 import pandas as pd
 import numpy as np
 import openpyxl
+import dask.dataframe as dd
 
 from ExcelPar.mod.SetGlobal import SetGlobal
 
 class SummarizeMonthlyVarAmount:
     @classmethod
-    def SummarizeMonthlyVarAmount(cls, gl:pd.DataFrame, tb:pd.DataFrame) -> pd.DataFrame: #Return : tb_월별
+    def SummarizeMonthlyVarAmount(cls, gl:dd.DataFrame, tb:pd.DataFrame) -> pd.DataFrame: #Return : tb_월별
 
         #############################################################
 
         ### 1. 월별 순변동액 (not 잔액)
 
-        #         ((O) GL 전처리를 전부 PreGL로 빼낸다. => GL은 dask로 소환
-        # (O) TB 전처리를 전부 PreTB로 빼낸다.
-        # (O) FS Line 대체 시점의 GL 가공 코드를 GL Slicing 시점으로 옮긴다.
-
-        # GL 호출부를 모두 dask로 대체한다
-        # df1 추출시점에 compute()붙인다.
-
-
-        # - KIA 배치 다시 돌린다 => 는 필요없음
-        # - PreGL 배치 만들어서 돌린다.
-
         #a. 당기GL을 추출한다. => 여기 고쳐야 함 dask로
-        gl_당기 = gl[gl["연도"] == "CY"] 
+        gl_당기:dd.DataFrame = gl[gl["연도"] == "CY"] 
 
         #b. 당기GL을 행은 계정과목 / 열은 회계월로 피벗(SUM)한다. => TB와 JOIN => 여기 고쳐야함 dask로
-        gl_월별 = pd.pivot_table(gl_당기,values=('전표금액'),index=['계정과목코드','계정과목명'],columns=['회계월'],aggfunc=np.sum)
-        
+        #gl_월별 = pd.pivot_table(gl_당기,values=('전표금액'),index=['계정과목코드','계정과목명'],columns=['회계월'],aggfunc=np.sum)
+        gl_월별Tmp:pd.DataFrame|pd.DataFrame = gl_당기.groupby(['계정과목코드','계정과목명','회계월'])['전표금액'].sum()#.compute() #UNSTACK IS ONLY PANDAS
+        if SetGlobal.bDask:
+            gl_월별Tmp = gl_월별Tmp.compute()
+        gl_월별:pd.DataFrame = gl_월별Tmp.unstack('회계월')
 
         # 후처리
         gl_월별 = gl_월별.fillna(0)

@@ -5,22 +5,9 @@ from ExcelPar.mod.SetGlobal import SetGlobal
 
 class ChangeTBGL:
     @classmethod
-    def ChangeTBGL(cls, gl:pd.DataFrame, tb:pd.DataFrame) -> pd.DataFrame: #return tb #-> list[pd.DataFrame, pd.DataFrame]: 
+    def ChangeTBGL(cls, tb:pd.DataFrame) -> pd.DataFrame: #return tb #-> list[pd.DataFrame, pd.DataFrame]: 
         
-        SetGlobal.Level = "FSLine" #Set class var
-        
-        #1. GL [Company Code]를 FS Line으로 변경한다.        
-        try:
-            gl['Company code'] = gl['FSCode'].fillna(0).astype(float).astype(int).astype(str) + "_" + gl['FSName'].astype(str) #DEBUG 231025
-        except Exception as e:
-            print(e)
-            gl['Company code'] = gl['FSCode'].fillna(0).astype(str) + "_" + gl['FSName'].astype(str) #DEBUG 231025
-        try:
-            gl['계정과목코드'] = gl['FSCode'].fillna(0).astype(float).astype(int).astype(str) #DEBUG 231025
-        except Exception as e:
-            print(e)
-            gl['계정과목코드'] = gl['FSCode'].fillna(0).astype(str) #DEBUG 231025
-        gl['계정과목명'] = gl['FSName']
+        SetGlobal.Level = "FSLine" #Set class var                
 
         #Call by object reference이므로 df조작(gl)은 반영됨
         print("TB를 FS Line 기준으로 Reshape합니다.")        

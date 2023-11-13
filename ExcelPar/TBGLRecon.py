@@ -42,14 +42,14 @@ class TBGLRecon:
 
     @classmethod
     @ErrRetry    
-    def TBGLRecon(cls, dfGL:pd.DataFrame): # adapter pattern
+    def TBGLRecon(cls, dfGL:dd.DataFrame): # adapter pattern #DD
 
         print("TB/GL Recon 기초자료를 추출합니다.")    
         #dfGL.pivot_table(index=["계정과목코드","계정과목명"],columns="연도",values="전표금액",aggfunc='sum').to_excel("검증_GL.xlsx")
         #dfGL.pivot_table(index=["계정과목코드","계정과목명"],columns="연도",values="전표금액",aggfunc='sum').compute().to_excel("검증_GL.xlsx")
         #dfGL = dfGL.categorize(columns=['연도'])
         #dfTmp = dfGL.pivot_table(index="계정과목코드",columns="연도",values="전표금액",aggfunc='sum').compute() # FOR DASK PIVOT
-        dfTmp = dfGL.groupby(['계정과목코드','계정과목명','연도'])['전표금액'].sum().compute() # GROUPBY AND UNSTACK
+        dfTmp:pd.DataFrame = dfGL.groupby(['계정과목코드','계정과목명','연도'])['전표금액'].sum().compute() # GROUPBY AND UNSTACK
         dfTmp = dfTmp.unstack('연도')
         dfTmp.to_excel("검증_GL.xlsx")        
         print("검증_GL.xlsx 추출완료\n")

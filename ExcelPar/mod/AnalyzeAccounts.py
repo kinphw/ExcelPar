@@ -34,7 +34,7 @@ class AnalyzeAccounts:
     #Define Class var - to decompose
     account_code:str #현재 순환중인 계정과목코드
 
-    df:dd.DataFrame #Raw Full G/L => Dask
+    df:dd.DataFrame|pd.DataFrame #Raw Full G/L => Use Flag
     df1:pd.DataFrame #Sliced (each account)
     df2:pd.DataFrame #df1 -> Pivot
 
@@ -52,7 +52,7 @@ class AnalyzeAccounts:
     #ENTRY POINT : 선언부
     ########################################################################
     @classmethod
-    def AnalyzeAccounts(cls, gl:dd.DataFrame): #Public
+    def AnalyzeAccounts(cls, gl:dd.DataFrame|pd.DataFrame): #Public
 
         # List of account codes to analyze
         account_codes = SetGlobal.분석계정과목 #Global
@@ -71,7 +71,8 @@ class AnalyzeAccounts:
             cls.pbar.set_description(cls.account_code)        
             cls.pbar.update(1)                    
 
-            cls.df = gl #인수로 GL을 받아서 클래스변수에 넣는다.. 
+            cls.df = gl #인수로 GL을 받아서 클래스변수에 넣는다.
+
             cls.df2 = cls.__SetDfSliced()
             cls.__SetCorridor() #범위를 설정한다.
 
@@ -104,14 +105,20 @@ class AnalyzeAccounts:
 
         #df1 설정부 : Slicing
         if SetGlobal.Level == 'Detail': #ChangeTBGL에서 이쪽으로 돌아옴
-            cls.df1 = cls.df[cls.df["Company code"] == cls.account_code].compute() #GL 중 대상 계정과목만 추출 => df1
+            
+            cls.df1 : pd.DataFrame|dd.DataFrame = cls.df[cls.df["Company code"] == cls.account_code] #GL 중 대상 계정과목만 추출 => df1
+            if SetGlobal.bDask:
+                cls.df1 = cls.df1.compute()
+            
 
         elif SetGlobal.Level == 'FSLine':
             #1. 일단 Code 기준으로 추출
             tmp:str = cls.account_code.split("_")[0]
-            cls.df1 = cls.df[cls.df["FSCode"] == tmp].compute() #GL 중 대상 계정과목만 추출 => df1
-            
-            #2. 추출 후에서는 가공
+            cls.df1 = cls.df[cls.df["FSCode"] == tmp]#.compute() #GL 중 대상 계정과목만 추출 => df1
+            if SetGlobal.bDask:
+                cls.df1 = cls.df1.compute()
+        
+            #2. 추출 후 가공
             try:
                 cls.df1['Company code'] = cls.df1['FSCode'].fillna(0).astype(float).astype(int).astype(str) + "_" + cls.df1['FSName'].astype(str) #DEBUG 231025
             except Exception as e:
@@ -152,6 +159,8 @@ class AnalyzeAccounts:
         df_melted = cls.df2.melt(id_vars=['회계월'], value_vars=['CY', 'PY'], var_name='구분', value_name='금액') #Melted Dataframe
         df_mean = df_melted[df_melted['금액'] != 0]["금액"].mean() #Melted df 중 금액이 있는 월의 평균
         df_std = df_melted[df_melted['금액'] != 0]["금액"].std() #표준편차            
+        if pd.isna(df_std): df_std = 0 #DEBUG
+            
 
         # Z-Score 임계값 설정 (예시: ±2)
         상단기준_Z = 2

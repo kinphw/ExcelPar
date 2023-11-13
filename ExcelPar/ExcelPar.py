@@ -3,6 +3,7 @@
 # v0.0.7 DD 231026
 #####################################################################
 
+import pandas as pd
 import dask.dataframe as dd
 
 # Step1 - Detail
@@ -68,7 +69,7 @@ class ExcelPar:
         SetGlobal.SetGlobal()
 
         print("\n#2-1. 전처리된 GL을 Import합니다.")        
-        gl:dd.DataFrame = ImportGL.ImportGL() #import하여 gl 객체 선언(dd)
+        gl:dd.DataFrame|pd.DataFrame = ImportGL.ImportGL() #import하여 gl 객체 선언(dd)
 
         #print("\n#2-2. GL을 전처리합니다.")        
         #gl = PreprocessGL.PreprocessGL(gl) #gl 객체 가공함
@@ -96,7 +97,7 @@ class ExcelPar:
             print("\n\n###Phase2 : FS Line")
 
             print("\n#0. GL과 TB의 계정과목을 FS Line으로 대체합니다.")                
-            tb = ChangeTBGL.ChangeTBGL(gl,tb) #gl은 object reference로 조작, tb는 반환하여 재설정
+            tb = ChangeTBGL.ChangeTBGL(tb) #tb는 반환하여 재설정
 
             print("\n#3-2. TB를 전처리합니다.")
             PreprocessTB.PreprocessTB(tb)    

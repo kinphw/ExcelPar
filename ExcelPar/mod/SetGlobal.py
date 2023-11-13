@@ -16,6 +16,9 @@ class SetGlobal:
     분석계정과목 = []
     검토문장 = []
 
+    #bool
+    bDask = True #Dask 사용여부
+
     #Setter
     @classmethod
     def SetGlobal(cls):
