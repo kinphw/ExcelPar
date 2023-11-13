@@ -4,6 +4,7 @@ import openpyxl
 import dask.dataframe as dd
 
 from ExcelPar.mod.SetGlobal import SetGlobal
+from ExcelPar.mylib.TimeCheck import TimeCheck as tc
 
 class SummarizeMonthlyVarAmount:
     @classmethod
@@ -18,9 +19,11 @@ class SummarizeMonthlyVarAmount:
 
         #b. 당기GL을 행은 계정과목 / 열은 회계월로 피벗(SUM)한다. => TB와 JOIN => 여기 고쳐야함 dask로
         #gl_월별 = pd.pivot_table(gl_당기,values=('전표금액'),index=['계정과목코드','계정과목명'],columns=['회계월'],aggfunc=np.sum)
-        gl_월별Tmp:pd.DataFrame|pd.DataFrame = gl_당기.groupby(['계정과목코드','계정과목명','회계월'])['전표금액'].sum()#.compute() #UNSTACK IS ONLY PANDAS
-        if SetGlobal.bDask:
-            gl_월별Tmp = gl_월별Tmp.compute()
+        tc.Set()
+        gl_월별Tmp:pd.DataFrame|pd.DataFrame = gl_당기.groupby(['계정과목코드','계정과목명','회계월'])['전표금액'].sum()#.compute #UNSTACK IS ONLY PANDAS
+        if SetGlobal.bDask: gl_월별Tmp = gl_월별Tmp.compute()
+        tc.Check("gl_당기.groupby")
+        
         gl_월별:pd.DataFrame = gl_월별Tmp.unstack('회계월')
 
         # 후처리
@@ -59,7 +62,14 @@ class SummarizeMonthlyVarAmount:
         columns = ['T1', 'T2', 'T3', 'T4','Company code','통제활동의존', '위험수준', '증감금액', '증감비율', 'Threshold', '분석대상', '계정과목코드','계정과목명','PY']
         start_column = len(columns) - 1
         
-        TmpList = gl_당기['회계월'].drop_duplicates().to_list() #당기 월수를 추출하고,        
+        #TmpList = gl_당기['회계월'].drop_duplicates().to_list() #당기 월수를 추출하고,     :DD231103    
+        tc.Set()
+        TmpList = gl_당기['회계월'].drop_duplicates()
+        if SetGlobal.bDask: TmpList = TmpList.compute()
+        tc.Check("gl_당기['회계월'].drop_duplicates()")
+        
+        TmpList = TmpList.to_list() #list임
+        
         TmpList = pd.Series(TmpList).dropna().to_list() #231102 DEBUG, dropna (회계월이 NaN인 경우 삭제)
         TmpList.sort() #오름차순 정렬한다. (누적합을 위해)
         columns = columns + TmpList #합치고,

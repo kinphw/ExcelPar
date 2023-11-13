@@ -24,6 +24,7 @@ import tqdm
 import dask.dataframe as dd
 
 from ExcelPar.mod.SetGlobal import SetGlobal
+from ExcelPar.mylib.TimeCheck import TimeCheck as tc
 
 class AnalyzeAccounts:
 
@@ -106,30 +107,33 @@ class AnalyzeAccounts:
         #df1 설정부 : Slicing
         if SetGlobal.Level == 'Detail': #ChangeTBGL에서 이쪽으로 돌아옴
             
+            tc.Set()
             cls.df1 : pd.DataFrame|dd.DataFrame = cls.df[cls.df["Company code"] == cls.account_code] #GL 중 대상 계정과목만 추출 => df1
-            if SetGlobal.bDask:
-                cls.df1 = cls.df1.compute()
+            if SetGlobal.bDask: cls.df1 = cls.df1.compute()
+            tc.Check("df1.compute")
             
 
         elif SetGlobal.Level == 'FSLine':
             #1. 일단 Code 기준으로 추출
             tmp:str = cls.account_code.split("_")[0]
-            cls.df1 = cls.df[cls.df["FSCode"] == tmp]#.compute() #GL 중 대상 계정과목만 추출 => df1
-            if SetGlobal.bDask:
-                cls.df1 = cls.df1.compute()
+
+            tc.Set()
+            cls.df1 = cls.df[cls.df["FSCode"] == tmp]#.compute #GL 중 대상 계정과목만 추출 => df1
+            if SetGlobal.bDask: cls.df1 = cls.df1.compute()
+            tc.Check("df1.compute")
         
             #2. 추출 후 가공
             try:
-                cls.df1['Company code'] = cls.df1['FSCode'].fillna(0).astype(float).astype(int).astype(str) + "_" + cls.df1['FSName'].astype(str) #DEBUG 231025
+                cls.df1.loc[:,'Company code'] = cls.df1['FSCode'].fillna(0).astype(float).astype(int).astype(str) + "_" + cls.df1['FSName'].astype(str) #DEBUG 231025
             except Exception as e:
                 print(e)
-                cls.df1['Company code'] = cls.df1['FSCode'].fillna(0).astype(str) + "_" + cls.df1['FSName'].astype(str) #DEBUG 231025
+                cls.df1.loc[:,'Company code'] = cls.df1['FSCode'].fillna(0).astype(str) + "_" + cls.df1['FSName'].astype(str) #DEBUG 231025
             try:
-                cls.df1['계정과목코드'] = cls.df1['FSCode'].fillna(0).astype(float).astype(int).astype(str) #DEBUG 231025
+                cls.df1.loc[:,'계정과목코드'] = cls.df1['FSCode'].fillna(0).astype(float).astype(int).astype(str) #DEBUG 231025
             except Exception as e:
                 print(e)
-                cls.df1['계정과목코드'] = cls.df1['FSCode'].fillna(0).astype(str) #DEBUG 231025
-            cls.df1['계정과목명'] = cls.df1['FSName']            
+                cls.df1.loc[:,'계정과목코드'] = cls.df1['FSCode'].fillna(0).astype(str) #DEBUG 231025
+            cls.df1.loc[:,'계정과목명'] = cls.df1['FSName']            
         else:
             print("전역변수 'Level' 설정 오류")        
         
