@@ -63,43 +63,59 @@ class ExcelPar:
         #HANDLER
         print("###EXCEL PAR BEGIN:")
 
-        print("\n###Phase1 : Detail")
-        
-        print("\n#1. 기초정보를 설정합니다.")             
-        SetGlobal.SetGlobal()
+        flag = input("Detail 분석: D / FSLine 분석 : F>>")
 
-        print("\n#2-1. 전처리된 GL을 Import합니다.")        
-        gl:dd.DataFrame|pd.DataFrame = ImportGL.ImportGL() #import하여 gl 객체 선언(dd)
+        if flag == 'D':
 
-        #print("\n#2-2. GL을 전처리합니다.")        
-        #gl = PreprocessGL.PreprocessGL(gl) #gl 객체 가공함
+            print("\n###Phase1 : Detail")
+            
+            print("\n#1. 기초정보를 설정합니다.")             
+            SetGlobal.SetGlobal()
 
-        print("\n#3-1. TB를 Import합니다.")        
-        tb = ImportTB.ImportTB() #import하여 tb 객체 선언
+            print("\n#2-1. 전처리된 GL을 Import합니다.")        
+            gl:dd.DataFrame|pd.DataFrame = ImportGL.ImportGL() #import하여 gl 객체 선언(dd)
 
-        print("\n#3-2. 분석대상 계정과목을 인식합니다.")        
-        tb = PreprocessTB.PreprocessTB(tb) #목표 변경. 대부분 PreTB로 내림
+            #print("\n#2-2. GL을 전처리합니다.")        
+            #gl = PreprocessGL.PreprocessGL(gl) #gl 객체 가공함
 
-        print("\n#4. 계정별 분석을 실시하고 계정별 분석보고서를 생성합니다.")        
-        AnalyzeAccounts.AnalyzeAccounts(gl) #gl을 넣어서 STATIC변수(분석문구)를 업데이트한다.    
+            print("\n#3-1. TB를 Import합니다.")        
+            tb = ImportTB.ImportTB() #import하여 tb 객체 선언
 
-        print("\n#5. 계정별 월별/누적월별증감액 보고서를 생성합니다.")        
-        tb_월별 = SummarizeMonthlyVarAmount.SummarizeMonthlyVarAmount(gl,tb) #gl과 tb를 넣어 STATIC WORK, tb_월별을 반환
+            print("\n#3-2. 분석대상 계정과목을 인식합니다.")        
+            tb = PreprocessTB.PreprocessTB(tb) #목표 변경. 대부분 PreTB로 내림
 
-        print("\n#6. 총괄 분석보고서를 생성합니다.")            
-        LeadFileName = CreateLeadReport.CreateLeadReport(tb, tb_월별)
+            print("\n#4. 계정별 분석을 실시하고 계정별 분석보고서를 생성합니다.")        
+            AnalyzeAccounts.AnalyzeAccounts(gl) #gl을 넣어서 STATIC변수(분석문구)를 업데이트한다.    
 
-        print("\n#7. 후처리 후 파일을 정리합니다.")            
-        Postprocess.Postprocess(LeadFileName)
+            print("\n#5. 계정별 월별/누적월별증감액 보고서를 생성합니다.")        
+            tb_월별 = SummarizeMonthlyVarAmount.SummarizeMonthlyVarAmount(gl,tb) #gl과 tb를 넣어 STATIC WORK, tb_월별을 반환
 
-        if input("FS Line 분석을 추가 실시합니까? 실시하면 Y>>") == 'Y':
+            print("\n#6. 총괄 분석보고서를 생성합니다.")            
+            LeadFileName = CreateLeadReport.CreateLeadReport(tb, tb_월별)
+
+            print("\n#7. 후처리 후 파일을 정리합니다.")            
+            Postprocess.Postprocess(LeadFileName)
+
+        elif flag == 'F':
 
             print("\n\n###Phase2 : FS Line")
+
+            print("\n#1. 기초정보를 설정합니다.")             
+            SetGlobal.SetGlobal()
+
+            print("\n#2-1. 전처리된 GL을 Import합니다.")        
+            gl:dd.DataFrame|pd.DataFrame = ImportGL.ImportGL() #import하여 gl 객체 선언(dd)
+
+            #print("\n#2-2. GL을 전처리합니다.")        
+            #gl = PreprocessGL.PreprocessGL(gl) #gl 객체 가공함
+
+            print("\n#3-1. TB를 Import합니다.")        
+            tb = ImportTB.ImportTB() #import하여 tb 객체 선언
 
             print("\n#0. GL과 TB의 계정과목을 FS Line으로 대체합니다.")                
             tb = ChangeTBGL.ChangeTBGL(tb) #tb는 반환하여 재설정
 
-            print("\n#3-2. TB를 전처리합니다.")
+            print("\n#3-2. 분석대상 계정과목을 인식합니다.")
             PreprocessTB.PreprocessTB(tb)    
 
             print("\n#4. 계정별 분석을 실시하고 계정별 분석보고서를 생성합니다.")
@@ -114,6 +130,10 @@ class ExcelPar:
             print("\n#7. 후처리 후 파일을 정리합니다.")    
             Postprocess.Postprocess(LeadFileName)
 
+        else:
+            print("종료합니다.")
+
+        
         print("###EXCEL PAR END:...")        
 
 def RunEP():

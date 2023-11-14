@@ -7,6 +7,7 @@
 
 import re
 import string
+import gc
 
 import openpyxl
 from openpyxl import load_workbook
@@ -67,7 +68,13 @@ class AnalyzeAccounts:
         cls.pbar.set_description("순환 START")
         ProgressBar().register()
 
+        #i = 0 #FOR DEBUG
+        
         for account_code in account_codes: #분석계정과목 전체를 계정별로 순환한다.
+
+            if int(account_code[:8]) <= 35002030: print(account_code); continue
+            #i += 1 #FOR DEBUG
+            #if i<=18: continue # FOR DEBUG
             #BEGIN
             cls.account_code = account_code
 
@@ -95,6 +102,10 @@ class AnalyzeAccounts:
             cls.__SaveWorkbook(report_filename) #Workbook을 저장한다.
 
             cls.__CreateSentence() #해당 계정 분석문장을 생성하고, 전역변수에 추가한다.
+
+            #CLEAR부
+            del cls.df1, cls.df2, cls.result1
+            gc.collect()
             
         cls.pbar.close()
         print("계정순환 종료.")
@@ -257,27 +268,32 @@ class AnalyzeAccounts:
         
         if len(cls.추출월) > 0:
         
-            result = pd.DataFrame()
+            # result = pd.DataFrame()
             # for i in cls.추출월:
-            #     #result = pd.concat([result, cls.df1[cls.df1["회계월"] == i]])                  
-            #     dfTmp = cls.df[(cls.df["Company code"] == cls.account_code) & (cls.df["회계월"] == i)]
-            #     tc.Set()
-            #     if SetGlobal.bDask: dfTmp = dfTmp.compute()
-            #     tc.Check('cls.df[(cls.df["Company code"] == cls.account_code) & (cls.df["회계월"] == i)]')
-            #     pd.concat([result,dfTmp])
+            #     result = pd.concat([result, cls.df1[cls.df1["회계월"] == i]])  
             # result_pv = pd.pivot_table(result, index = ['회계월','거래처코드'],columns = ['연도'], values = ['전표금액'], aggfunc = 'sum').reset_index().fillna(0)
-
-            for i in cls.추출월:
-                dfTmp1 = cls.df[cls.df["Company code"] == cls.account_code]
-                dfTmp2 = dfTmp1[dfTmp1["회계월"] == i]
-                dfTmp3 = dfTmp2.groupby(["회계월","거래처코드","연도"])["전표금액"].sum()
-                tc.Set()
-                dfTmp4 = dfTmp3.compute()
-                tc.Check("line 275")                
-                pd.concat([result,dfTmp4])
-            result_pv = result.unstack("연도").reset_index().fillna(0)
             
+            result = pd.DataFrame()
+            for i in cls.추출월: #231113 DEBUG : 아래로 대체
+                #result = pd.concat([result, cls.df1[cls.df1["회계월"] == i]])                  
+                dfTmp = cls.df[(cls.df["Company code"] == cls.account_code) & (cls.df["회계월"] == i)]
+                tc.Set()
+                if SetGlobal.bDask: dfTmp = dfTmp.compute()
+                tc.Check('cls.df[(cls.df["Company code"] == cls.account_code) & (cls.df["회계월"] == i)]')
+                result = pd.concat([result,dfTmp])
+            result_pv = pd.pivot_table(result, index = ['회계월','거래처코드'],columns = ['연도'], values = ['전표금액'], aggfunc = 'sum').reset_index().fillna(0)
 
+            # result = pd.DataFrame()
+            # for i in cls.추출월:
+            #     dfTmp1 = cls.df[cls.df["Company code"] == cls.account_code]
+            #     dfTmp2 = dfTmp1[dfTmp1["회계월"] == i]
+            #     dfTmp3 = dfTmp2.groupby(["회계월","거래처코드","연도"])["전표금액"].sum()
+            #     tc.Set()
+            #     dfTmp4 = dfTmp3.compute()
+            #     dfTmp5 = dfTmp4.unstack().reset_index()
+            #     tc.Check("line 275")                
+            #     result = pd.concat([result,dfTmp5])
+            # result_pv = result.fillna(0)
 
             #당기 혹은 전기가 없는 에러 수정
             if ( '전표금액', 'CY') not in result_pv.columns:
@@ -294,7 +310,6 @@ class AnalyzeAccounts:
             result_pv["Rank"] = result_pv.groupby(["회계월"])['차이금액(절대값)'].rank(method='min', ascending=False)
             
             cls.result_pv = result_pv #클래스변수로 정의
-
 
             result["월합산"] = result.groupby(["회계월","연도"])["전표금액"].transform("sum")
             result["설명율"] = result["전표금액"]/result["월합산"]
