@@ -28,7 +28,7 @@ class SetGlobal:
     @classmethod
     def SetGlobal(cls):
         PM = 1000000000 # 10억을 기준으로 함
-        cls.PM = input("적용할 PM을 입력하세요 > ") or '6,285,000,000'
+        cls.PM = input("적용할 PM을 입력하세요 > ") or ' 454,329,600,000'
         try:
             cls.PM = cls.PM.replace(",","")
         except:
@@ -37,7 +37,7 @@ class SetGlobal:
         print(f'입력하신 PM은 {cls.PM:,}입니다.')
 
         #De_minimis = 200000000
-        cls.De_minimis = input("적용할 CTT를 입력하세요 > ") or '551,000,000'
+        cls.De_minimis = input("적용할 CTT를 입력하세요 > ") or ' 28,395,600,000'
         try:
             cls.De_minimis = cls.De_minimis.replace(",","")
         except:
@@ -45,7 +45,7 @@ class SetGlobal:
         cls.De_minimis = int(cls.De_minimis)
         print(f'입력하신 CTT는 {cls.De_minimis:,}입니다.')
 
-        cls.ClientNameDate = input("파일명에 반영할 회사명/기준월을 입력하세요. 파일명에만 영향을 줍니다. (ex. 삼성전자2309)> ") or '강원랜드2309'
+        cls.ClientNameDate = input("파일명에 반영할 회사명/기준월을 입력하세요. 파일명에만 영향을 줍니다. (ex. 삼성전자2309)> ") or '기아2309'
         print(f'입력하신 회사명/기준월은 {cls.ClientNameDate}입니다.')
 
         # cls.diff_비율 = 0.2

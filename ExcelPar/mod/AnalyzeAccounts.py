@@ -22,6 +22,7 @@ import pandas as pd
 import numpy as np
 import tqdm
 import dask.dataframe as dd
+from dask.diagnostics import ProgressBar
 
 from ExcelPar.mod.SetGlobal import SetGlobal
 from ExcelPar.mylib.TimeCheck import TimeCheck as tc
@@ -36,7 +37,7 @@ class AnalyzeAccounts:
     account_code:str #현재 순환중인 계정과목코드
 
     df:dd.DataFrame|pd.DataFrame #Raw Full G/L => Use Flag
-    df1:pd.DataFrame #Sliced (each account)
+    df1:dd.DataFrame|pd.DataFrame #Sliced (each account)
     df2:pd.DataFrame #df1 -> Pivot
 
     wb:Workbook #Created file
@@ -64,6 +65,7 @@ class AnalyzeAccounts:
         ### 진행률
         cls.pbar = tqdm.tqdm(total=len(account_codes), desc="...")
         cls.pbar.set_description("순환 START")
+        ProgressBar().register()
 
         for account_code in account_codes: #분석계정과목 전체를 계정별로 순환한다.
             #BEGIN
@@ -107,10 +109,10 @@ class AnalyzeAccounts:
         #df1 설정부 : Slicing
         if SetGlobal.Level == 'Detail': #ChangeTBGL에서 이쪽으로 돌아옴
             
-            tc.Set()
+            #tc.Set()
             cls.df1 : pd.DataFrame|dd.DataFrame = cls.df[cls.df["Company code"] == cls.account_code] #GL 중 대상 계정과목만 추출 => df1
-            if SetGlobal.bDask: cls.df1 = cls.df1.compute()
-            tc.Check("df1.compute")
+            #if SetGlobal.bDask: cls.df1 = cls.df1.compute()
+            #tc.Check("df1.compute")
             
 
         elif SetGlobal.Level == 'FSLine':
@@ -141,8 +143,13 @@ class AnalyzeAccounts:
 
         d = pd.DataFrame(np.zeros((12, 0))) #[12,0] DF 생성 => d
         d["회계월"] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]  #d는 1~12 월 Series임
-        df2 = cls.df1.pivot_table(index=["회계월"], columns='연도', values='전표금액', aggfunc='sum').reset_index() #df1을 (행)회계월/(열)연도로 피벗함
-        df2 = pd.merge(d, df2, on="회계월", how="left").fillna(0) #d & df2 join함. 그냥 df2랑 같은 것임 (1~12월의 12행)        
+        #df2 = cls.df1.pivot_table(index=["회계월"], columns='연도', values='전표금액', aggfunc='sum').reset_index() #df1을 (행)회계월/(열)연도로 피벗함
+        df2_tmp:pd.DataFrame = cls.df[cls.df["Company code"] == cls.account_code].groupby(['회계월','연도'])['전표금액'].sum()        
+        tc.Set()
+        if SetGlobal.bDask: df2_tmp = df2_tmp.compute()
+        tc.Check('Line149')
+        df2_tmp = df2_tmp.unstack('연도').reset_index()        
+        df2 = pd.merge(d, df2_tmp, on="회계월", how="left").fillna(0) #d & df2 join함. 그냥 df2랑 같은 것임 (1~12월의 12행)        
 
         #당기 혹은 전기가 없는 에러 수정    
         if 'CY' not in df2.columns:
@@ -163,8 +170,7 @@ class AnalyzeAccounts:
         df_melted = cls.df2.melt(id_vars=['회계월'], value_vars=['CY', 'PY'], var_name='구분', value_name='금액') #Melted Dataframe
         df_mean = df_melted[df_melted['금액'] != 0]["금액"].mean() #Melted df 중 금액이 있는 월의 평균
         df_std = df_melted[df_melted['금액'] != 0]["금액"].std() #표준편차            
-        if pd.isna(df_std): df_std = 0 #DEBUG
-            
+        if pd.isna(df_std): df_std = 0 #DEBUG            
 
         # Z-Score 임계값 설정 (예시: ±2)
         상단기준_Z = 2
@@ -252,9 +258,25 @@ class AnalyzeAccounts:
         if len(cls.추출월) > 0:
         
             result = pd.DataFrame()
+            # for i in cls.추출월:
+            #     #result = pd.concat([result, cls.df1[cls.df1["회계월"] == i]])                  
+            #     dfTmp = cls.df[(cls.df["Company code"] == cls.account_code) & (cls.df["회계월"] == i)]
+            #     tc.Set()
+            #     if SetGlobal.bDask: dfTmp = dfTmp.compute()
+            #     tc.Check('cls.df[(cls.df["Company code"] == cls.account_code) & (cls.df["회계월"] == i)]')
+            #     pd.concat([result,dfTmp])
+            # result_pv = pd.pivot_table(result, index = ['회계월','거래처코드'],columns = ['연도'], values = ['전표금액'], aggfunc = 'sum').reset_index().fillna(0)
+
             for i in cls.추출월:
-                result = pd.concat([result, cls.df1[cls.df1["회계월"] == i]])  
-            result_pv = pd.pivot_table(result, index = ['회계월','거래처코드'],columns = ['연도'], values = ['전표금액'], aggfunc = 'sum').reset_index().fillna(0)
+                dfTmp1 = cls.df[cls.df["Company code"] == cls.account_code]
+                dfTmp2 = dfTmp1[dfTmp1["회계월"] == i]
+                dfTmp3 = dfTmp2.groupby(["회계월","거래처코드","연도"])["전표금액"].sum()
+                tc.Set()
+                dfTmp4 = dfTmp3.compute()
+                tc.Check("line 275")                
+                pd.concat([result,dfTmp4])
+            result_pv = result.unstack("연도").reset_index().fillna(0)
+            
 
 
             #당기 혹은 전기가 없는 에러 수정
