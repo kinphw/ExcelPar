@@ -1,7 +1,7 @@
 # Excel Par
 
 Excel Par Sourcecode.
-v0.1.3 DD 231107
+v0.1.8
 
 # How to use
 
