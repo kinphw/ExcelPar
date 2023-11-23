@@ -57,3 +57,5 @@ v0.1.3, 231104 : GL Slicing import 구현
 4. Excel Par Main분석부 : ExcelPar.RunEP()
 - 전처리 완료된 TB/GL을 읽어서 분석 후 산출물 생성
 - 최초코드를 리팩토링함
+
+test
