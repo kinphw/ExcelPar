@@ -17,5 +17,6 @@ dist/*
 #Add
 test.py
 test.ipynb
+test_kia.py
 bkup/*
 bin/*
