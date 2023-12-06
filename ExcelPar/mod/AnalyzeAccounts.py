@@ -72,7 +72,7 @@ class AnalyzeAccounts:
         
         for account_code in account_codes: #분석계정과목 전체를 계정별로 순환한다.
 
-            if int(account_code[:8]) <= 35002030: print(account_code); continue
+            #if int(account_code[:8]) <= 35002030: print(account_code); continue
             #i += 1 #FOR DEBUG
             #if i<=18: continue # FOR DEBUG
             #BEGIN

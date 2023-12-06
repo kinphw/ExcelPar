@@ -10,7 +10,7 @@ read README.md
 2-4. BKPF+BSEG Join : JoinBKPFBSEG
 3. GL 전처리부 : PreGL.RunPreGL()
 3-2 TB GL Recon : TBGLRecon.RunTBGLRecon()
-3-3 Concat(소용량) : ConcatParquet:RunConcatParquet()
+3-3 Concat(소용량) : (PARQUET or TEXT)
 4. Excel Par Main분석부 : ExcelPar.RunEP()
     """
     while True:

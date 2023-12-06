@@ -17,8 +17,21 @@ class ImportGL :
             SetGlobal.bDask = True #Flag처리
 
             glPath = myfd.askdirectory("Select GL Folder to read *.parquet") #PHW            
-            glTgt = glPath + "/*.parquet"
-            gl = dd.read_parquet(glTgt) #return gl
+
+            ext = input("확장자 parquet or tsv(기본 parquet)>>") or 'parquet'
+            match ext:
+                case 'parquet':
+                    glTgt = glPath + "/*.parquet"
+                    gl = dd.read_parquet(glTgt) #return gl
+                case 'tsv':
+                    glTgt = glPath + "/*.tsv"
+                    encod = input("인코딩 (기본 utf8)>>") or 'utf8'
+                    gl = dd.read_csv(glTgt, encoding=encod, sep='\t'
+                                    , dtype={'DetailCode': 'object'
+                                    ,'계정과목코드': 'object'}) #return gl
+                case _:
+                    print("ERROR...")
+            
         else:
             SetGlobal.bDask = False #Flag처리
 

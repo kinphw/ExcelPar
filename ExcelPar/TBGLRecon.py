@@ -36,7 +36,18 @@ class TBGLRecon:
                 df = dd.read_parquet(tgtPathFile)
                 ProgressBar().register()
             case '.tsv':
-                print("tsv")
+                #df = dd.read_parquet(tgtPathFile)
+                encoding = input("ENCODING(기본값 utf8)>>") or 'utf8'
+                df = dd.read_csv(tgtPathFile, encoding=encoding, sep='\t'
+                                 , dtype={'BSPL': 'object',
+                                'DetailCode': 'object',
+                                'DetailName': 'object',
+                                'FSName': 'object',
+                                '계정과목명': 'object',
+                                '계정과목코드': 'object',
+                                '전표금액':'float64'})
+                ProgressBar().register()           
+                #print("tsv")
 
         cls.TBGLRecon(df) #Inject dd
 

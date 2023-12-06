@@ -343,7 +343,7 @@ def AddFSLineCode(dfGL:pd.DataFrame, tgtdir:str)->pd.DataFrame:
     #dfGL["계정과목코드"] = dfGL["계정과목코드"].astype(str)
     try:
         #dfGL["계정과목코드"] = dfGL["계정과목코드"].fillna(0).astype('float64').astype('int64').astype('str') #DEBUG 231105 0150
-        dfGL["계정과목코드"] = pd.to_numeric(dfGL["계정과목코드"].fillna(0), downcast='unsigned', errors='coerce').astype('str') #231110 2300 modify
+        dfGL["계정과목코드"] = pd.to_numeric(dfGL["계정과목코드"].fillna(0), downcast='unsigned', errors='coerce').astype('float64').astype('int64').astype('str') #231110 2300 modify
     except Exception as e:
         print(e)        
         dfGL["계정과목코드"] = dfGL["계정과목코드"].fillna(0).astype('str')
