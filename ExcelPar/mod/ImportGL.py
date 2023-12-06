@@ -40,7 +40,7 @@ class ImportGL :
 
             ext = os.path.splitext(glFile)
             match ext[1]:
-                case '.tsv':
+                case '.tsv' | 'txt':
                     gl = pd.read_csv(glFile, encoding="utf-8-sig", sep="\t", low_memory=False)
                 case '.parquet':
                     gl = pd.read_parquet(glFile)
